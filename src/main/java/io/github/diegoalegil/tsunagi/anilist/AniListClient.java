@@ -27,33 +27,36 @@ public class AniListClient {
         this.objectMapper = new ObjectMapper();
     }
 
-    private String buildSearchQuery(String title) {
-        return """
-                query {
-                  Media(search: "%s", type: ANIME) {
-                    id
-                    idMal
-                    title {
-                      romaji
-                      english
-                      native
-                    }
-                    startDate {
-                      year
-                    }
-                    description
-                    coverImage {
-                      large
-                    }
-                    averageScore
-                  }
+    // The search term travels as a GraphQL variable ($search), never interpolated
+    // into the query string. This avoids breaking the query (or injecting into it)
+    // when a title contains quotes or other special characters.
+    private static final String SEARCH_QUERY = """
+            query ($search: String) {
+              Media(search: $search, type: ANIME) {
+                id
+                idMal
+                title {
+                  romaji
+                  english
+                  native
                 }
-                """.formatted(title);
-    }
+                startDate {
+                  year
+                }
+                description
+                coverImage {
+                  large
+                }
+                averageScore
+              }
+            }
+            """;
 
     public String buildSearchRequestBody(String title) throws JsonProcessingException {
-        String query = buildSearchQuery(title);
-        return objectMapper.writeValueAsString(Map.of("query", query));
+        Map<String, Object> payload = Map.of(
+                "query", SEARCH_QUERY,
+                "variables", Map.of("search", title));
+        return objectMapper.writeValueAsString(payload);
     }
 
     public Anime searchAnime(String title) throws IOException, InterruptedException {
