@@ -14,6 +14,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.Map;
+import java.util.Optional;
 
 public class AniListClient {
 
@@ -59,7 +60,7 @@ public class AniListClient {
         return objectMapper.writeValueAsString(payload);
     }
 
-    public Anime searchAnime(String title) throws IOException, InterruptedException {
+    public Optional<Anime> searchAnime(String title) throws IOException, InterruptedException {
         String body = buildSearchRequestBody(title);
 
         HttpRequest request = HttpRequest.newBuilder()
@@ -72,6 +73,12 @@ public class AniListClient {
                 request,
                 HttpResponse.BodyHandlers.ofString());
 
+        // AniList answers 404 (not 200 with a null body) when a single Media
+        // search finds nothing. Treat that as "no result", not as a failure.
+        if (response.statusCode() == 404) {
+            return Optional.empty();
+        }
+
         if (response.statusCode() != 200) {
             throw new IOException("AniList request failed with status " + response.statusCode());
         }
@@ -79,9 +86,14 @@ public class AniListClient {
         return parseAnime(response.body());
     }
 
-    private Anime parseAnime(String responseBody) throws JsonProcessingException {
+    Optional<Anime> parseAnime(String responseBody) throws JsonProcessingException {
         JsonNode root = objectMapper.readTree(responseBody);
-        JsonNode media = root.get("data").get("Media");
+        JsonNode media = root.path("data").path("Media");
+
+        // Defensive: even on 200, Media can be null/missing if nothing matched.
+        if (media.isMissingNode() || media.isNull()) {
+            return Optional.empty();
+        }
 
         String id = "anilist:" + media.get("id").asInt();
 
@@ -115,13 +127,13 @@ public class AniListClient {
             averageScore = scoreNode.asDouble();
         }
 
-        return new Anime(
+        return Optional.of(new Anime(
                 id,
                 animeTitle,
                 year,
                 description,
                 imageUrl,
-                averageScore);
+                averageScore));
     }
 
     private String firstNonNullText(JsonNode... nodes) {
