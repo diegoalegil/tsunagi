@@ -29,6 +29,7 @@ public final class TsunagiConfig {
     private final int retryMaxAttempts;
     private final Duration retryInitialDelay;
     private final Duration requestTimeout;
+    private final String userAgent;
 
     private TsunagiConfig(Builder builder) {
         this.tmdbToken = builder.tmdbToken;
@@ -39,6 +40,7 @@ public final class TsunagiConfig {
         this.retryMaxAttempts = builder.retryMaxAttempts;
         this.retryInitialDelay = builder.retryInitialDelay;
         this.requestTimeout = builder.requestTimeout;
+        this.userAgent = builder.userAgent;
     }
 
     /** The TMDb Bearer token, if one was configured. */
@@ -81,6 +83,11 @@ public final class TsunagiConfig {
         return requestTimeout;
     }
 
+    /** The User-Agent header sent to sources, if one was configured. */
+    public Optional<String> userAgent() {
+        return Optional.ofNullable(userAgent);
+    }
+
     public static Builder builder() {
         return new Builder();
     }
@@ -95,6 +102,7 @@ public final class TsunagiConfig {
         private int retryMaxAttempts = 3;
         private Duration retryInitialDelay = Duration.ofMillis(500);
         private Duration requestTimeout = Duration.ofSeconds(30);
+        private String userAgent;
 
         private Builder() {
         }
@@ -144,6 +152,12 @@ public final class TsunagiConfig {
         /** Sets the per-request HTTP timeout for every source. Defaults to 30 seconds. */
         public Builder requestTimeout(Duration requestTimeout) {
             this.requestTimeout = requestTimeout;
+            return this;
+        }
+
+        /** Sets the User-Agent header sent to sources. Optional; unset by default. */
+        public Builder userAgent(String userAgent) {
+            this.userAgent = userAgent;
             return this;
         }
 
