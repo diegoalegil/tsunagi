@@ -49,7 +49,7 @@ handles rate limiting, retries, caching and timeouts for you.
 <dependency>
     <groupId>io.github.diegoalegil</groupId>
     <artifactId>tsunagi</artifactId>
-    <version>1.0.0</version>
+    <version>1.1.0</version>
 </dependency>
 ```
 
@@ -129,6 +129,7 @@ TsunagiConfig config = TsunagiConfig.builder()
         .retryMaxAttempts(3)                       // default: 3
         .retryInitialDelay(Duration.ofMillis(500)) // default: 500 ms
         .requestTimeout(Duration.ofSeconds(30))    // default: 30 seconds
+        .userAgent("MyApp/1.0 (+https://example.com)") // default: none — see note
         .build();
 ```
 
@@ -138,6 +139,12 @@ TsunagiConfig config = TsunagiConfig.builder()
 | `cacheEnabled` / `cacheTtl` / `cacheMaxSize` | optional | `false` / 10 min / 1000 |
 | `retryEnabled` / `retryMaxAttempts` / `retryInitialDelay` | optional | `true` / 3 / 500 ms |
 | `requestTimeout` | optional | 30 s |
+| `userAgent` | optional | none |
+
+> **Note on `userAgent`:** the JDK treats `User-Agent` as a restricted header, so it
+> is only sent when you set it *and* start the JVM with
+> `-Djdk.httpclient.allowRestrictedHeaders=user-agent`. Some sources behind a CDN
+> (e.g. AniList via Cloudflare) require an identifiable User-Agent.
 
 ### TMDb token
 
@@ -184,6 +191,33 @@ JikanClient jikan = new JikanClient(); // owns a 3 req/s rate limiter
 TmdbClient tmdb = new TmdbClient(System.getenv("TMDB_TOKEN"));
 ```
 
+### Rich source models (since 1.1.0)
+
+Beyond the unified `Anime`, the AniList and TMDb clients expose each source's
+richer data directly, as source-shaped records — so you get every field the API
+provides:
+
+```java
+// AniList — most popular anime, paginated internally, with full metadata
+List<AniListMedia> popular = anilist.fetchPopular(50);
+for (AniListMedia m : popular) {
+    m.title().romaji();
+    m.studios().nodes();    // studios, incl. isAnimationStudio
+    m.characters().edges(); // up to 6 main characters (role, name, image)
+    m.tags();               // tags with rank
+}
+
+// TMDb — search, details, watch providers and trailers; you pass the language
+TmdbSearchResponse tv = tmdb.searchTv("Attack on Titan", "es-ES");
+long id = tv.results().get(0).id();
+tmdb.getTvDetails(id, "es-ES");   // localized overview
+tmdb.getWatchProviders(id);       // providers by country (flatrate/free/rent/buy)
+tmdb.getTrailers(id, "es-ES");    // videos (YouTube keys, ...)
+```
+
+Both clients also accept optional `userAgent`, `RetryPolicy` and
+`TokenBucketRateLimiter` parameters through their canonical constructors.
+
 ## Limitations
 
 - **TMDb** is movie/TV oriented; in Tsunagi it is used mainly for posters and
@@ -221,6 +255,7 @@ Publishing to Maven Central is documented in [RELEASING.md](RELEASING.md).
 - [x] Unified `TsunagiClient` facade
 - [x] Maven Central publishing setup
 - [x] First release on Maven Central
+- [x] Rich source models + paginated popular fetch (1.1.0)
 - [ ] Optional VS Code extension ([tsunagi-vscode](https://github.com/diegoalegil/tsunagi-vscode))
 
 ## License
