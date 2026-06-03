@@ -39,4 +39,19 @@ class TsunagiConfigTest {
         assertTrue(config.tmdbToken().isPresent());
         assertEquals("secret-token", config.tmdbToken().get());
     }
+
+    @Test
+    void userAgentIsEmptyWhenNotSet() {
+        assertTrue(TsunagiConfig.builder().build().userAgent().isEmpty());
+    }
+
+    @Test
+    void userAgentIsPresentWhenSet() {
+        TsunagiConfig config = TsunagiConfig.builder()
+                .userAgent("DondeAnime/1.0 (+https://dondeanime.com)")
+                .build();
+
+        assertTrue(config.userAgent().isPresent());
+        assertEquals("DondeAnime/1.0 (+https://dondeanime.com)", config.userAgent().get());
+    }
 }
