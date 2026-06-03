@@ -4,7 +4,6 @@ import io.github.diegoalegil.tsunagi.exception.ApiException;
 import io.github.diegoalegil.tsunagi.exception.RateLimitException;
 import io.github.diegoalegil.tsunagi.exception.SourceUnavailableException;
 import io.github.diegoalegil.tsunagi.exception.TsunagiException;
-import io.github.diegoalegil.tsunagi.http.HttpDefaults;
 import io.github.diegoalegil.tsunagi.model.Anime;
 import io.github.diegoalegil.tsunagi.source.AnimeSource;
 
@@ -29,20 +28,30 @@ public final class AniListClient implements AnimeSource {
 
     private static final URI API_URL = URI.create("https://graphql.anilist.co");
 
+    private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(10);
+    private static final Duration DEFAULT_REQUEST_TIMEOUT = Duration.ofSeconds(30);
+
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
     private final Duration requestTimeout;
 
     /** Creates a client with the default request timeout. */
     public AniListClient() {
-        this(HttpDefaults.REQUEST_TIMEOUT);
+        this(DEFAULT_REQUEST_TIMEOUT);
     }
 
     /** Creates a client with a custom per-request timeout. */
     public AniListClient(Duration requestTimeout) {
-        this.httpClient = HttpDefaults.newClient();
+        this.httpClient = HttpClient.newBuilder().connectTimeout(CONNECT_TIMEOUT).build();
         this.objectMapper = new ObjectMapper();
-        this.requestTimeout = HttpDefaults.validateRequestTimeout(requestTimeout);
+        this.requestTimeout = requireTimeout(requestTimeout);
+    }
+
+    private static Duration requireTimeout(Duration requestTimeout) {
+        if (requestTimeout == null || requestTimeout.isNegative() || requestTimeout.isZero()) {
+            throw new IllegalArgumentException("requestTimeout must be positive, got " + requestTimeout);
+        }
+        return requestTimeout;
     }
 
     // The search term travels as a GraphQL variable ($search), never interpolated

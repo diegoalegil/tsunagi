@@ -3,6 +3,7 @@ package io.github.diegoalegil.tsunagi.anilist;
 import io.github.diegoalegil.tsunagi.model.Anime;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 
@@ -61,6 +62,13 @@ class AniListMappingTest {
     void rejectsNullOrBlankTitle() {
         assertThrows(IllegalArgumentException.class, () -> client.searchAnime(null));
         assertThrows(IllegalArgumentException.class, () -> client.searchAnime(" "));
+    }
+
+    @Test
+    void rejectsInvalidRequestTimeout() {
+        assertThrows(IllegalArgumentException.class, () -> new AniListClient(null));
+        assertThrows(IllegalArgumentException.class, () -> new AniListClient(Duration.ZERO));
+        assertThrows(IllegalArgumentException.class, () -> new AniListClient(Duration.ofSeconds(-1)));
     }
 
     @Test
