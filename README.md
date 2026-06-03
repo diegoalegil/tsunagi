@@ -220,7 +220,7 @@ Publishing to Maven Central is documented in [RELEASING.md](RELEASING.md).
 - [x] HTTP timeouts and input validation
 - [x] Unified `TsunagiClient` facade
 - [x] Maven Central publishing setup
-- [ ] First release on Maven Central
+- [x] First release on Maven Central
 - [ ] Optional VS Code extension ([tsunagi-vscode](https://github.com/diegoalegil/tsunagi-vscode))
 
 ## License
