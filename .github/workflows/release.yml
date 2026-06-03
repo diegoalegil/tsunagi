@@ -36,7 +36,9 @@ jobs:
           gpg-passphrase: GPG_PASSPHRASE
 
       - name: Publish to Maven Central
-        run: mvn -B -Prelease deploy -DskipTests
+        # Run the full test suite on the exact tagged state before deploying,
+        # so a tag is never published unless its own build is green.
+        run: mvn -B -Prelease deploy
         env:
           CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
           CENTRAL_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
