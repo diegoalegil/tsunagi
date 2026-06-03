@@ -9,7 +9,7 @@
 [![CI](https://github.com/diegoalegil/tsunagi/actions/workflows/ci.yml/badge.svg)](https://github.com/diegoalegil/tsunagi/actions/workflows/ci.yml)
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.diegoalegil/tsunagi.svg?label=Maven%20Central)](https://central.sonatype.com/artifact/io.github.diegoalegil/tsunagi)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Java 21](https://img.shields.io/badge/Java-21-orange.svg)](https://adoptium.net/)
+[![Java 17](https://img.shields.io/badge/Java-17-orange.svg)](https://adoptium.net/)
 
 <img src="img/banner.png" alt="Tsunagi — Anime Data SDK for Java" width="100%">
 
@@ -53,7 +53,7 @@ handles rate limiting, retries, caching and timeouts for you.
 </dependency>
 ```
 
-Requires **Java 21+**.
+Requires **Java 17+**.
 
 ## Quick start
 
