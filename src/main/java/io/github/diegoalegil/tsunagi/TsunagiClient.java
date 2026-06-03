@@ -83,6 +83,8 @@ public final class TsunagiClient {
      * @return the unified result, or an empty optional when no source matches
      */
     public Optional<Anime> searchAnime(String title) {
+        AnimeSource.requireSearchTitle(title);
+
         if (cache != null) {
             Optional<Optional<Anime>> cached = cache.get(title);
             if (cached.isPresent()) {

@@ -7,6 +7,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -50,6 +51,12 @@ class JikanClientTest {
         assertEquals("https://img/cb-large.jpg", anime.imageUrl());
         // 8.75 on Jikan's 0-10 scale becomes 87.5 on the unified 0-100 scale.
         assertEquals(87.5, anime.averageScore());
+    }
+
+    @Test
+    void rejectsNullOrBlankTitle() {
+        assertThrows(IllegalArgumentException.class, () -> client.searchAnime(null));
+        assertThrows(IllegalArgumentException.class, () -> client.searchAnime("  "));
     }
 
     @Test

@@ -67,6 +67,7 @@ public final class AniListClient implements AnimeSource {
 
     @Override
     public Optional<Anime> searchAnime(String title) {
+        AnimeSource.requireSearchTitle(title);
         HttpResponse<String> response = send(title);
         int status = response.statusCode();
 
