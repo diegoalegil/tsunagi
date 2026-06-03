@@ -128,7 +128,7 @@ public final class AniListClient implements AnimeSource {
               Page(page: $page, perPage: $perPage) {
                 media(type: ANIME, sort: [POPULARITY_DESC, ID]) {
                   id
-                  title { romaji english }
+                  title { romaji english native }
                   startDate { year month day }
                   endDate { year month day }
                   episodes
@@ -141,6 +141,7 @@ public final class AniListClient implements AnimeSource {
                   coverImage { large }
                   bannerImage
                   genres
+                  synonyms
                   studios { nodes { id name isAnimationStudio } }
                   season
                   seasonYear

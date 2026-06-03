@@ -25,6 +25,7 @@ public record AniListMedia(
         AniListCoverImage coverImage,
         String bannerImage,
         List<String> genres,
+        List<String> synonyms,
         AniListStudioConnection studios,
         String season,
         Integer seasonYear,

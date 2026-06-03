@@ -6,8 +6,14 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import java.util.List;
 
 /**
- * A single TV result from {@code /search/tv}. {@code posterPath} is the raw
- * relative path TMDb returns; turning it into a full URL is left to the caller.
+ * A single result from TMDb search. Supports both {@code /search/tv} and
+ * {@code /search/multi}: TV uses {@code name}/{@code first_air_date}, movies use
+ * {@code title}/{@code release_date}, and {@code media_type} (populated only by
+ * {@code /search/multi}) tells them apart. The {@code display*} and
+ * {@code isTv()}/{@code isMovie()} helpers return the right value per type.
+ *
+ * <p>{@code posterPath} is the raw relative path TMDb returns; building a full
+ * URL is left to the caller.
  */
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public record TmdbSearchResult(
@@ -18,6 +24,35 @@ public record TmdbSearchResult(
         String firstAirDate,
         List<String> originCountry,
         String posterPath,
-        Double popularity
+        Double popularity,
+        String title,
+        String originalTitle,
+        String releaseDate,
+        String mediaType,
+        String originalLanguage
 ) {
+
+    /** Display title: a TV result uses {@code name}, a movie uses {@code title}. */
+    public String displayName() {
+        return name != null ? name : title;
+    }
+
+    /** Original title: a TV result uses {@code original_name}, a movie uses {@code original_title}. */
+    public String displayOriginalName() {
+        return originalName != null ? originalName : originalTitle;
+    }
+
+    /** Release date: a TV result uses {@code first_air_date}, a movie uses {@code release_date}. */
+    public String displayDate() {
+        return firstAirDate != null ? firstAirDate : releaseDate;
+    }
+
+    /** A {@code /search/tv} result carries no media_type, so treat it as TV. */
+    public boolean isTv() {
+        return mediaType == null || "tv".equalsIgnoreCase(mediaType);
+    }
+
+    public boolean isMovie() {
+        return "movie".equalsIgnoreCase(mediaType);
+    }
 }

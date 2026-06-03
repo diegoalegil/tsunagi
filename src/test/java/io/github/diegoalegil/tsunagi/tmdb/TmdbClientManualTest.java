@@ -28,6 +28,9 @@ class TmdbClientManualTest {
         TmdbSearchResponse search = client.searchTv("Attack on Titan", "es-ES");
         System.out.println(search);
 
+        // /search/multi returns TV + movies; media_type distinguishes them.
+        System.out.println(client.searchMulti("Suzume", "es-ES"));
+
         Long id = search.results().get(0).id();
         System.out.println(client.getTvDetails(id, "es-ES"));
         System.out.println(client.getWatchProviders(id));

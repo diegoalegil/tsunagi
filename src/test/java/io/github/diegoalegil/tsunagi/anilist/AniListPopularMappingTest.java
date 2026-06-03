@@ -25,7 +25,8 @@ class AniListPopularMappingTest {
                       "media": [
                         {
                           "id": 1,
-                          "title": { "romaji": "Cowboy Bebop", "english": "Cowboy Bebop" },
+                          "title": { "romaji": "Cowboy Bebop", "english": "Cowboy Bebop", "native": "カウボーイビバップ" },
+                          "synonyms": ["Kaubōi Bibappu", "COWBOY BEBOP"],
                           "startDate": { "year": 1998, "month": 4, "day": 3 },
                           "endDate": { "year": 1999, "month": 4, "day": 24 },
                           "episodes": 26,
@@ -70,6 +71,8 @@ class AniListPopularMappingTest {
         assertEquals(1L, m.id());
         assertEquals("Cowboy Bebop", m.title().romaji());
         assertEquals("Cowboy Bebop", m.title().english());
+        assertEquals("カウボーイビバップ", m.title().nativeTitle());
+        assertEquals(List.of("Kaubōi Bibappu", "COWBOY BEBOP"), m.synonyms());
 
         // Fuzzy dates: year/month/day all present on both ends.
         assertEquals(1998, m.startDate().year());
@@ -115,7 +118,7 @@ class AniListPopularMappingTest {
 
     @Test
     void keepsNestedNullsAsNullForSparseMedia() throws Exception {
-        // No startDate, studios, characters or tags at all.
+        // No native title, synonyms, startDate, studios, characters or tags.
         String json = """
                 {
                   "data": {
@@ -140,6 +143,8 @@ class AniListPopularMappingTest {
         assertEquals(42L, m.id());
         assertEquals("Naruto", m.title().romaji());
         assertNull(m.title().english());
+        assertNull(m.title().nativeTitle());
+        assertNull(m.synonyms());
         assertNull(m.startDate());
         assertNull(m.endDate());
         assertNull(m.episodes());
