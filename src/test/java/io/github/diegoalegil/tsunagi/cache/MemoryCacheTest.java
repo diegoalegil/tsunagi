@@ -95,9 +95,30 @@ class MemoryCacheTest {
     }
 
     @Test
+    void evictsLeastRecentlyUsedEntryWhenFull() {
+        MemoryCache<String, String> cache = new MemoryCache<>(Duration.ofMinutes(10), 2);
+
+        cache.put("a", "1");
+        cache.put("b", "2");
+        cache.get("a");      // "a" is now the most-recently-used
+        cache.put("c", "3"); // exceeds size 2 -> evicts the LRU entry, which is "b"
+
+        assertEquals(2, cache.size());
+        assertTrue(cache.get("a").isPresent());
+        assertTrue(cache.get("c").isPresent());
+        assertTrue(cache.get("b").isEmpty(), "the least-recently-used entry should be evicted");
+    }
+
+    @Test
     void rejectsInvalidTtl() {
         assertThrows(IllegalArgumentException.class, () -> new MemoryCache<>(null));
         assertThrows(IllegalArgumentException.class, () -> new MemoryCache<>(Duration.ZERO));
         assertThrows(IllegalArgumentException.class, () -> new MemoryCache<>(Duration.ofSeconds(-1)));
+    }
+
+    @Test
+    void rejectsInvalidMaxSize() {
+        assertThrows(IllegalArgumentException.class, () -> new MemoryCache<>(Duration.ofMinutes(1), 0));
+        assertThrows(IllegalArgumentException.class, () -> new MemoryCache<>(Duration.ofMinutes(1), -3));
     }
 }
