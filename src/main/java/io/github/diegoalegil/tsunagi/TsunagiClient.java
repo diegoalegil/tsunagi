@@ -50,9 +50,9 @@ public final class TsunagiClient {
     /** Builds a client with the real AniList, TMDb (if a token is set) and Jikan sources. */
     public TsunagiClient(TsunagiConfig config) {
         this(
-                new AniListClient(),
-                config.tmdbToken().map(token -> (AnimeSource) new TmdbClient(token)).orElse(null),
-                new JikanClient(),
+                new AniListClient(config.requestTimeout()),
+                config.tmdbToken().map(token -> (AnimeSource) new TmdbClient(token, config.requestTimeout())).orElse(null),
+                new JikanClient(config.requestTimeout()),
                 config.cacheEnabled() ? new MemoryCache<>(config.cacheTtl()) : null,
                 config.retryEnabled()
                         ? RetryPolicy.exponentialBackoff(config.retryMaxAttempts(), config.retryInitialDelay())

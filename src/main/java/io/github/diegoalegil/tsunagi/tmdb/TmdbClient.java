@@ -4,6 +4,7 @@ import io.github.diegoalegil.tsunagi.exception.ApiException;
 import io.github.diegoalegil.tsunagi.exception.RateLimitException;
 import io.github.diegoalegil.tsunagi.exception.SourceUnavailableException;
 import io.github.diegoalegil.tsunagi.exception.TsunagiException;
+import io.github.diegoalegil.tsunagi.http.HttpDefaults;
 import io.github.diegoalegil.tsunagi.model.Anime;
 import io.github.diegoalegil.tsunagi.source.AnimeSource;
 
@@ -18,6 +19,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.Optional;
 
 /**
@@ -41,19 +43,27 @@ public final class TmdbClient implements AnimeSource {
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
     private final String bearerToken;
+    private final Duration requestTimeout;
 
     /**
-     * Creates a client authenticated with the given TMDb v4 Bearer token.
+     * Creates a client authenticated with the given TMDb v4 Bearer token and the
+     * default request timeout.
      *
      * @param bearerToken the TMDb read access token; must not be null or blank
      */
     public TmdbClient(String bearerToken) {
+        this(bearerToken, HttpDefaults.REQUEST_TIMEOUT);
+    }
+
+    /** Creates a client with a custom per-request timeout. */
+    public TmdbClient(String bearerToken, Duration requestTimeout) {
         if (bearerToken == null || bearerToken.isBlank()) {
             throw new IllegalArgumentException("TMDb bearer token must not be null or blank");
         }
-        this.httpClient = HttpClient.newHttpClient();
+        this.httpClient = HttpDefaults.newClient();
         this.objectMapper = new ObjectMapper();
         this.bearerToken = bearerToken;
+        this.requestTimeout = HttpDefaults.validateRequestTimeout(requestTimeout);
     }
 
     /**
@@ -68,6 +78,7 @@ public final class TmdbClient implements AnimeSource {
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(uri)
+                .timeout(requestTimeout)
                 .header("Authorization", "Bearer " + bearerToken)
                 .header("Accept", "application/json")
                 .GET()

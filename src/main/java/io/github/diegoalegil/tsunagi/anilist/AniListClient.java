@@ -4,6 +4,7 @@ import io.github.diegoalegil.tsunagi.exception.ApiException;
 import io.github.diegoalegil.tsunagi.exception.RateLimitException;
 import io.github.diegoalegil.tsunagi.exception.SourceUnavailableException;
 import io.github.diegoalegil.tsunagi.exception.TsunagiException;
+import io.github.diegoalegil.tsunagi.http.HttpDefaults;
 import io.github.diegoalegil.tsunagi.model.Anime;
 import io.github.diegoalegil.tsunagi.source.AnimeSource;
 
@@ -13,6 +14,7 @@ import java.net.http.HttpResponse;
 
 import java.net.URI;
 import java.net.http.HttpClient;
+import java.time.Duration;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -27,10 +29,18 @@ public final class AniListClient implements AnimeSource {
 
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
+    private final Duration requestTimeout;
 
+    /** Creates a client with the default request timeout. */
     public AniListClient() {
-        this.httpClient = HttpClient.newHttpClient();
+        this(HttpDefaults.REQUEST_TIMEOUT);
+    }
+
+    /** Creates a client with a custom per-request timeout. */
+    public AniListClient(Duration requestTimeout) {
+        this.httpClient = HttpDefaults.newClient();
         this.objectMapper = new ObjectMapper();
+        this.requestTimeout = HttpDefaults.validateRequestTimeout(requestTimeout);
     }
 
     // The search term travels as a GraphQL variable ($search), never interpolated
@@ -100,6 +110,7 @@ public final class AniListClient implements AnimeSource {
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(API_URL)
+                .timeout(requestTimeout)
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(body))
                 .build();

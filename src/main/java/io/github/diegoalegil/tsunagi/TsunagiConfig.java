@@ -1,5 +1,7 @@
 package io.github.diegoalegil.tsunagi;
 
+import io.github.diegoalegil.tsunagi.http.HttpDefaults;
+
 import java.time.Duration;
 import java.util.Optional;
 
@@ -25,6 +27,7 @@ public final class TsunagiConfig {
     private final boolean retryEnabled;
     private final int retryMaxAttempts;
     private final Duration retryInitialDelay;
+    private final Duration requestTimeout;
 
     private TsunagiConfig(Builder builder) {
         this.tmdbToken = builder.tmdbToken;
@@ -33,6 +36,7 @@ public final class TsunagiConfig {
         this.retryEnabled = builder.retryEnabled;
         this.retryMaxAttempts = builder.retryMaxAttempts;
         this.retryInitialDelay = builder.retryInitialDelay;
+        this.requestTimeout = builder.requestTimeout;
     }
 
     /** The TMDb Bearer token, if one was configured. */
@@ -65,6 +69,11 @@ public final class TsunagiConfig {
         return retryInitialDelay;
     }
 
+    /** Maximum time to wait for a single HTTP response from a source. */
+    public Duration requestTimeout() {
+        return requestTimeout;
+    }
+
     public static Builder builder() {
         return new Builder();
     }
@@ -77,6 +86,7 @@ public final class TsunagiConfig {
         private boolean retryEnabled = true;
         private int retryMaxAttempts = 3;
         private Duration retryInitialDelay = Duration.ofMillis(500);
+        private Duration requestTimeout = HttpDefaults.REQUEST_TIMEOUT;
 
         private Builder() {
         }
@@ -114,6 +124,12 @@ public final class TsunagiConfig {
         /** Sets the initial backoff delay before the first retry. Defaults to 500 ms. */
         public Builder retryInitialDelay(Duration retryInitialDelay) {
             this.retryInitialDelay = retryInitialDelay;
+            return this;
+        }
+
+        /** Sets the per-request HTTP timeout for every source. Defaults to 30 seconds. */
+        public Builder requestTimeout(Duration requestTimeout) {
+            this.requestTimeout = requestTimeout;
             return this;
         }
 
