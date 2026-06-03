@@ -134,6 +134,23 @@ class RetryPolicyTest {
     }
 
     @Test
+    void backoffIsCappedAtSixtySeconds() {
+        RecordingSleeper sleeper = new RecordingSleeper();
+        RetryPolicy retry = policy(5, Duration.ofSeconds(40), sleeper);
+
+        assertThrows(TsunagiException.class, () -> retry.execute(() -> {
+            throw transientError();
+        }));
+
+        // 40s, then min(60s, 80s)=60s, capped from there on.
+        assertEquals(4, sleeper.delays.size());
+        assertEquals(Duration.ofSeconds(40), sleeper.delays.get(0));
+        assertEquals(Duration.ofSeconds(60), sleeper.delays.get(1));
+        assertEquals(Duration.ofSeconds(60), sleeper.delays.get(2));
+        assertEquals(Duration.ofSeconds(60), sleeper.delays.get(3));
+    }
+
+    @Test
     void rejectsInvalidArguments() {
         RecordingSleeper sleeper = new RecordingSleeper();
         assertThrows(IllegalArgumentException.class, () -> policy(0, Duration.ofMillis(10), sleeper));
