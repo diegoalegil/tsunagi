@@ -1,8 +1,8 @@
 package io.github.diegoalegil.tsunagi.source;
 
+import io.github.diegoalegil.tsunagi.exception.TsunagiException;
 import io.github.diegoalegil.tsunagi.model.Anime;
 
-import java.io.IOException;
 import java.util.Optional;
 
 /**
@@ -19,6 +19,7 @@ public interface AnimeSource {
      * Searches this source for an anime by title.
      *
      * @return the first match, or an empty optional when nothing matches
+     * @throws TsunagiException if the source fails or cannot be reached
      */
-    Optional<Anime> searchAnime(String title) throws IOException, InterruptedException;
+    Optional<Anime> searchAnime(String title);
 }

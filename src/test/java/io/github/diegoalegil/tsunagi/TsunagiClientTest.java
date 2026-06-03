@@ -1,10 +1,10 @@
 package io.github.diegoalegil.tsunagi;
 
+import io.github.diegoalegil.tsunagi.exception.TsunagiException;
 import io.github.diegoalegil.tsunagi.model.Anime;
 import io.github.diegoalegil.tsunagi.source.AnimeSource;
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -16,10 +16,10 @@ class TsunagiClientTest {
     /** A fake source that returns a canned result, or fails on demand. */
     private static final class FakeSource implements AnimeSource {
         private final Optional<Anime> result;
-        private final IOException failure;
+        private final TsunagiException failure;
         boolean called;
 
-        private FakeSource(Optional<Anime> result, IOException failure) {
+        private FakeSource(Optional<Anime> result, TsunagiException failure) {
             this.result = result;
             this.failure = failure;
         }
@@ -33,11 +33,11 @@ class TsunagiClientTest {
         }
 
         static FakeSource failing() {
-            return new FakeSource(Optional.empty(), new IOException("boom"));
+            return new FakeSource(Optional.empty(), new TsunagiException("boom"));
         }
 
         @Override
-        public Optional<Anime> searchAnime(String title) throws IOException {
+        public Optional<Anime> searchAnime(String title) {
             called = true;
             if (failure != null) {
                 throw failure;

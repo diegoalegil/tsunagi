@@ -1,5 +1,9 @@
 package io.github.diegoalegil.tsunagi.anilist;
 
+import io.github.diegoalegil.tsunagi.exception.ApiException;
+import io.github.diegoalegil.tsunagi.exception.RateLimitException;
+import io.github.diegoalegil.tsunagi.exception.SourceUnavailableException;
+import io.github.diegoalegil.tsunagi.exception.TsunagiException;
 import io.github.diegoalegil.tsunagi.model.Anime;
 import io.github.diegoalegil.tsunagi.source.AnimeSource;
 
@@ -61,8 +65,37 @@ public class AniListClient implements AnimeSource {
         return objectMapper.writeValueAsString(payload);
     }
 
-    public Optional<Anime> searchAnime(String title) throws IOException, InterruptedException {
-        String body = buildSearchRequestBody(title);
+    @Override
+    public Optional<Anime> searchAnime(String title) {
+        HttpResponse<String> response = send(title);
+        int status = response.statusCode();
+
+        // AniList answers 404 (not 200 with a null body) when a single Media
+        // search finds nothing. Treat that as "no result", not as a failure.
+        if (status == 404) {
+            return Optional.empty();
+        }
+        if (status == 429) {
+            throw new RateLimitException("AniList");
+        }
+        if (status != 200) {
+            throw new ApiException("AniList", status);
+        }
+
+        try {
+            return parseAnime(response.body());
+        } catch (JsonProcessingException e) {
+            throw new TsunagiException("Failed to parse AniList response", e);
+        }
+    }
+
+    private HttpResponse<String> send(String title) {
+        String body;
+        try {
+            body = buildSearchRequestBody(title);
+        } catch (JsonProcessingException e) {
+            throw new TsunagiException("Failed to build AniList request", e);
+        }
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(API_URL)
@@ -70,21 +103,14 @@ public class AniListClient implements AnimeSource {
                 .POST(HttpRequest.BodyPublishers.ofString(body))
                 .build();
 
-        HttpResponse<String> response = httpClient.send(
-                request,
-                HttpResponse.BodyHandlers.ofString());
-
-        // AniList answers 404 (not 200 with a null body) when a single Media
-        // search finds nothing. Treat that as "no result", not as a failure.
-        if (response.statusCode() == 404) {
-            return Optional.empty();
+        try {
+            return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        } catch (IOException e) {
+            throw new SourceUnavailableException("AniList", "request failed", e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new SourceUnavailableException("AniList", "request interrupted", e);
         }
-
-        if (response.statusCode() != 200) {
-            throw new IOException("AniList request failed with status " + response.statusCode());
-        }
-
-        return parseAnime(response.body());
     }
 
     Optional<Anime> parseAnime(String responseBody) throws JsonProcessingException {
