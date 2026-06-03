@@ -11,6 +11,35 @@
 
     <name>Tsunagi 繋ぎ</name>
     <description>Anime Data SDK for Java — unified client for AniList, TMDb and Jikan.</description>
+    <url>https://github.com/diegoalegil/tsunagi</url>
+
+    <licenses>
+        <license>
+            <name>MIT License</name>
+            <url>https://opensource.org/licenses/MIT</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <id>diegoalegil</id>
+            <name>Diego Gil</name>
+            <url>https://github.com/diegoalegil</url>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>scm:git:https://github.com/diegoalegil/tsunagi.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com/diegoalegil/tsunagi.git</developerConnection>
+        <url>https://github.com/diegoalegil/tsunagi</url>
+        <tag>HEAD</tag>
+    </scm>
+
+    <issueManagement>
+        <system>GitHub Issues</system>
+        <url>https://github.com/diegoalegil/tsunagi/issues</url>
+    </issueManagement>
 
     <properties>
         <maven.compiler.release>21</maven.compiler.release>
@@ -47,4 +76,81 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!--
+            Activate with `mvn -Prelease ...` to build the signed sources and
+            javadoc jars and publish to the Maven Central Portal. Normal builds
+            (`mvn test`, `mvn install`) do not need GPG or any credentials.
+        -->
+        <profile>
+            <id>release</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-source-plugin</artifactId>
+                        <version>3.3.1</version>
+                        <executions>
+                            <execution>
+                                <id>attach-sources</id>
+                                <goals>
+                                    <goal>jar-no-fork</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                        <version>3.12.0</version>
+                        <executions>
+                            <execution>
+                                <id>attach-javadocs</id>
+                                <goals>
+                                    <goal>jar</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                        <configuration>
+                            <doclint>none</doclint>
+                            <quiet>true</quiet>
+                        </configuration>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <version>3.2.8</version>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                        <configuration>
+                            <!-- Non-interactive signing, required on CI servers. -->
+                            <gpgArguments>
+                                <arg>--pinentry-mode</arg>
+                                <arg>loopback</arg>
+                            </gpgArguments>
+                        </configuration>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <version>0.10.0</version>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <publishingServerId>central</publishingServerId>
+                            <!-- Stage only; publish manually from the Portal after review. -->
+                            <autoPublish>false</autoPublish>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>
