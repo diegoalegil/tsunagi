@@ -34,6 +34,9 @@ public final class RetryPolicy {
         void sleep(Duration duration) throws InterruptedException;
     }
 
+    /** Upper bound on a single backoff wait, so exponential growth can never overflow. */
+    private static final long MAX_BACKOFF_NANOS = Duration.ofSeconds(60).toNanos();
+
     private final int maxAttempts;
     private final Duration initialDelay;
     private final double multiplier;
@@ -85,7 +88,8 @@ public final class RetryPolicy {
                     throw e;
                 }
                 sleep(delay);
-                delay = Duration.ofNanos((long) (delay.toNanos() * multiplier));
+                long nextNanos = (long) Math.min(MAX_BACKOFF_NANOS, delay.toNanos() * multiplier);
+                delay = Duration.ofNanos(nextNanos);
                 attempt++;
             }
         }
