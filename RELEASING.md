@@ -29,12 +29,12 @@ the project owner can perform, because they need personal credentials.
 
 ## Releasing via GitHub Actions (recommended)
 
-1. Make sure `pom.xml` has the version you want to release (e.g. `0.1.0`, no
+1. Make sure `pom.xml` has the version you want to release (e.g. `1.0.0`, no
    `-SNAPSHOT`) and that `CHANGELOG.md` has an entry for it.
 2. Tag and push:
    ```bash
-   git tag v0.1.0
-   git push origin v0.1.0
+   git tag v1.0.0
+   git push origin v1.0.0
    ```
 3. The `Release` workflow builds, signs and uploads the artifacts to the Central
    Portal as a **staged** deployment.
