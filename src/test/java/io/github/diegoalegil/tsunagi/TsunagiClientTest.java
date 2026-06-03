@@ -14,6 +14,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TsunagiClientTest {
@@ -63,6 +64,16 @@ class TsunagiClientTest {
 
     private static Anime complete(String id) {
         return new Anime(id, "Cowboy Bebop", 1998, "Bounty hunters.", "https://img/cb.jpg", 86.0);
+    }
+
+    @Test
+    void rejectsNullOrBlankTitleWithoutTouchingSources() {
+        FakeSource anilist = FakeSource.returning(complete("anilist:1"));
+        TsunagiClient client = new TsunagiClient(anilist, null, FakeSource.empty());
+
+        assertThrows(IllegalArgumentException.class, () -> client.searchAnime(null));
+        assertThrows(IllegalArgumentException.class, () -> client.searchAnime("   "));
+        assertEquals(0, anilist.calls, "validation must happen before any source call");
     }
 
     @Test

@@ -60,6 +60,7 @@ public final class JikanClient implements AnimeSource {
      */
     @Override
     public Optional<Anime> searchAnime(String title) {
+        AnimeSource.requireSearchTitle(title);
         String query = URLEncoder.encode(title, StandardCharsets.UTF_8);
         URI uri = URI.create(SEARCH_URL + "?q=" + query + "&limit=1");
 

@@ -8,6 +8,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -46,6 +47,12 @@ class AniListMappingTest {
         assertEquals("Space bounty hunters.", anime.description());
         assertEquals("https://img/cb.jpg", anime.imageUrl());
         assertEquals(86.0, anime.averageScore());
+    }
+
+    @Test
+    void rejectsNullOrBlankTitle() {
+        assertThrows(IllegalArgumentException.class, () -> client.searchAnime(null));
+        assertThrows(IllegalArgumentException.class, () -> client.searchAnime(" "));
     }
 
     @Test

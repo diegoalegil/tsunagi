@@ -85,6 +85,12 @@ class TmdbClientTest {
     }
 
     @Test
+    void rejectsNullOrBlankTitle() {
+        assertThrows(IllegalArgumentException.class, () -> client.searchAnime(null));
+        assertThrows(IllegalArgumentException.class, () -> client.searchAnime("   "));
+    }
+
+    @Test
     void rejectsBlankToken() {
         assertThrows(IllegalArgumentException.class, () -> new TmdbClient(null));
         assertThrows(IllegalArgumentException.class, () -> new TmdbClient(""));
