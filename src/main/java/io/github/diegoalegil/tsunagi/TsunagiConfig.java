@@ -1,5 +1,6 @@
 package io.github.diegoalegil.tsunagi;
 
+import io.github.diegoalegil.tsunagi.cache.MemoryCache;
 import io.github.diegoalegil.tsunagi.http.HttpDefaults;
 
 import java.time.Duration;
@@ -24,6 +25,7 @@ public final class TsunagiConfig {
     private final String tmdbToken;
     private final boolean cacheEnabled;
     private final Duration cacheTtl;
+    private final int cacheMaxSize;
     private final boolean retryEnabled;
     private final int retryMaxAttempts;
     private final Duration retryInitialDelay;
@@ -33,6 +35,7 @@ public final class TsunagiConfig {
         this.tmdbToken = builder.tmdbToken;
         this.cacheEnabled = builder.cacheEnabled;
         this.cacheTtl = builder.cacheTtl;
+        this.cacheMaxSize = builder.cacheMaxSize;
         this.retryEnabled = builder.retryEnabled;
         this.retryMaxAttempts = builder.retryMaxAttempts;
         this.retryInitialDelay = builder.retryInitialDelay;
@@ -52,6 +55,11 @@ public final class TsunagiConfig {
     /** How long a cached result stays valid. */
     public Duration cacheTtl() {
         return cacheTtl;
+    }
+
+    /** Maximum number of entries kept in the cache before LRU eviction. */
+    public int cacheMaxSize() {
+        return cacheMaxSize;
     }
 
     /** Whether transient failures are retried with exponential backoff. */
@@ -83,6 +91,7 @@ public final class TsunagiConfig {
         private String tmdbToken;
         private boolean cacheEnabled = false;
         private Duration cacheTtl = Duration.ofMinutes(10);
+        private int cacheMaxSize = MemoryCache.DEFAULT_MAX_SIZE;
         private boolean retryEnabled = true;
         private int retryMaxAttempts = 3;
         private Duration retryInitialDelay = Duration.ofMillis(500);
@@ -106,6 +115,12 @@ public final class TsunagiConfig {
         /** Sets how long cached results stay valid. Defaults to 10 minutes. */
         public Builder cacheTtl(Duration cacheTtl) {
             this.cacheTtl = cacheTtl;
+            return this;
+        }
+
+        /** Sets the maximum number of cached entries before LRU eviction. Defaults to 1000. */
+        public Builder cacheMaxSize(int cacheMaxSize) {
+            this.cacheMaxSize = cacheMaxSize;
             return this;
         }
 

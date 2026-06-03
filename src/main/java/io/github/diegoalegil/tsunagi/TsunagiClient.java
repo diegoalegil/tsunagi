@@ -53,7 +53,7 @@ public final class TsunagiClient {
                 new AniListClient(config.requestTimeout()),
                 config.tmdbToken().map(token -> (AnimeSource) new TmdbClient(token, config.requestTimeout())).orElse(null),
                 new JikanClient(config.requestTimeout()),
-                config.cacheEnabled() ? new MemoryCache<>(config.cacheTtl()) : null,
+                config.cacheEnabled() ? new MemoryCache<>(config.cacheTtl(), config.cacheMaxSize()) : null,
                 config.retryEnabled()
                         ? RetryPolicy.exponentialBackoff(config.retryMaxAttempts(), config.retryInitialDelay())
                         : null);
