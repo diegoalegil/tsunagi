@@ -95,6 +95,36 @@ class AniListMappingTest {
     }
 
     @Test
+    void handlesMissingNestedObjectsWithoutNullPointer() throws Exception {
+        // No title, startDate, coverImage or averageScore objects at all.
+        String json = """
+                {
+                  "data": {
+                    "Media": { "id": 99 }
+                  }
+                }
+                """;
+
+        Optional<Anime> result = client.parseAnime(json);
+
+        assertTrue(result.isPresent());
+        Anime anime = result.get();
+        assertEquals("anilist:99", anime.id());
+        assertNull(anime.title());
+        assertNull(anime.year());
+        assertNull(anime.description());
+        assertNull(anime.imageUrl());
+        assertNull(anime.averageScore());
+    }
+
+    @Test
+    void returnsEmptyWhenMediaHasNoUsableId() throws Exception {
+        Optional<Anime> result = client.parseAnime("{ \"data\": { \"Media\": { \"title\": { \"romaji\": \"X\" } } } }");
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
     void returnsEmptyWhenDataHasNoMediaField() throws Exception {
         String json = """
                 { "data": {} }
