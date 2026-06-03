@@ -123,37 +123,26 @@ public final class AniListClient implements AnimeSource {
             return Optional.empty();
         }
 
-        String id = "anilist:" + media.get("id").asInt();
+        // A Media without a usable id is malformed; treat it as no result.
+        JsonNode idNode = media.path("id");
+        if (!idNode.canConvertToInt()) {
+            return Optional.empty();
+        }
+        String id = "anilist:" + idNode.asInt();
 
-        JsonNode title = media.get("title");
+        // Every nested access uses path() so a missing/null object (e.g. an
+        // unreleased anime with no startDate or coverImage) yields a MissingNode
+        // instead of throwing a NullPointerException.
+        JsonNode title = media.path("title");
         String animeTitle = firstNonNullText(
-                title.get("romaji"),
-                title.get("english"),
-                title.get("native"));
+                title.path("romaji"),
+                title.path("english"),
+                title.path("native"));
 
-        Integer year = null;
-        JsonNode yearNode = media.get("startDate").get("year");
-        if (!yearNode.isNull()) {
-            year = yearNode.asInt();
-        }
-
-        String description = null;
-        JsonNode descriptionNode = media.get("description");
-        if (!descriptionNode.isNull()) {
-            description = descriptionNode.asText();
-        }
-
-        String imageUrl = null;
-        JsonNode imageNode = media.get("coverImage").get("large");
-        if (!imageNode.isNull()) {
-            imageUrl = imageNode.asText();
-        }
-
-        Double averageScore = null;
-        JsonNode scoreNode = media.get("averageScore");
-        if (!scoreNode.isNull()) {
-            averageScore = scoreNode.asDouble();
-        }
+        Integer year = intOrNull(media.path("startDate").path("year"));
+        String description = textOrNull(media.path("description"));
+        String imageUrl = textOrNull(media.path("coverImage").path("large"));
+        Double averageScore = doubleOrNull(media.path("averageScore"));
 
         return Optional.of(new Anime(
                 id,
@@ -164,13 +153,31 @@ public final class AniListClient implements AnimeSource {
                 averageScore));
     }
 
+    private String textOrNull(JsonNode node) {
+        if (node.isMissingNode() || node.isNull()) {
+            return null;
+        }
+        String text = node.asText();
+        return text.isEmpty() ? null : text;
+    }
+
+    private Integer intOrNull(JsonNode node) {
+        return node.canConvertToInt() ? node.asInt() : null;
+    }
+
+    private Double doubleOrNull(JsonNode node) {
+        return node.isNumber() ? node.asDouble() : null;
+    }
+
     private String firstNonNullText(JsonNode... nodes) {
         for (JsonNode node : nodes) {
-            if (node != null && !node.isNull()) {
-                return node.asText();
+            if (node != null && !node.isMissingNode() && !node.isNull()) {
+                String text = node.asText();
+                if (!text.isEmpty()) {
+                    return text;
+                }
             }
         }
-
         return null;
     }
 
