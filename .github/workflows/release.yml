@@ -1,0 +1,43 @@
+name: Release
+
+# Publishes to the Maven Central Portal when a version tag (e.g. v1.0.0) is pushed.
+#
+# Requires these repository secrets to be configured first:
+#   CENTRAL_USERNAME  - Central Portal token username (Account -> Generate User Token)
+#   CENTRAL_PASSWORD  - Central Portal token password
+#   GPG_PRIVATE_KEY   - ASCII-armored GPG private key used to sign the artifacts
+#   GPG_PASSPHRASE    - passphrase for that GPG key
+#
+# Artifacts are staged (autoPublish=false); publish the deployment from the
+# Central Portal UI after reviewing it.
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21 and Maven settings
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          server-id: central
+          server-username: CENTRAL_USERNAME
+          server-password: CENTRAL_PASSWORD
+          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg-passphrase: GPG_PASSPHRASE
+
+      - name: Publish to Maven Central
+        run: mvn -B -Prelease deploy -DskipTests
+        env:
+          CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
+          CENTRAL_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
