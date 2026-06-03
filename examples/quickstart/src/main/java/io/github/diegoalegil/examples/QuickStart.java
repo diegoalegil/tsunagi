@@ -30,10 +30,14 @@ public final class QuickStart {
         }
 
         Anime anime = result.get();
-        System.out.println("id:    " + anime.id());
-        System.out.println("title: " + anime.title());
-        System.out.println("year:  " + anime.year());
-        System.out.println("score: " + anime.averageScore());
-        System.out.println("image: " + anime.imageUrl());
+        System.out.println("id:       " + anime.id());
+        System.out.println("title:    " + anime.title());
+        System.out.println("year:     " + anime.year());
+        System.out.println("score:    " + anime.averageScore());
+        System.out.println("episodes: " + anime.episodes());
+        System.out.println("status:   " + anime.status());
+        System.out.println("genres:   " + anime.genres());
+        System.out.println("source:   " + anime.source());
+        System.out.println("image:    " + anime.imageUrl());
     }
 }

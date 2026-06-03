@@ -14,7 +14,7 @@
 
     <groupId>io.github.diegoalegil.examples</groupId>
     <artifactId>tsunagi-quickstart</artifactId>
-    <version>0.1.0</version>
+    <version>1.0.0</version>
     <packaging>jar</packaging>
 
     <properties>
@@ -26,7 +26,7 @@
         <dependency>
             <groupId>io.github.diegoalegil</groupId>
             <artifactId>tsunagi</artifactId>
-            <version>0.1.0</version>
+            <version>1.0.0</version>
         </dependency>
     </dependencies>
 

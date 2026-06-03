@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="img/banner.png" alt="Tsunagi — Anime Data SDK for Java" width="100%">
+<img src="img/logo.png" alt="Tsunagi logo" width="160">
 
 # Tsunagi 繋ぎ
 
@@ -11,11 +11,25 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Java 21](https://img.shields.io/badge/Java-21-orange.svg)](https://adoptium.net/)
 
+<img src="img/banner.png" alt="Tsunagi — Anime Data SDK for Java" width="100%">
+
 </div>
 
 ---
 
-## Why Tsunagi?
+## What is Tsunagi?
+
+Tsunagi is a small, dependency-light Java SDK that fetches anime data. Instead of
+learning three different APIs, you make one call and get back one consistent
+[`Anime`](src/main/java/io/github/diegoalegil/tsunagi/model/Anime.java) object.
+
+```
+three APIs  ──►  Tsunagi  ──►  one Anime model
+```
+
+> **Tsunagi** (繋ぎ) means *connection*, *link*, *the piece that joins things together*.
+
+### The problem it solves
 
 Each anime API speaks its own language:
 
@@ -25,13 +39,9 @@ Each anime API speaks its own language:
 | **TMDb** | REST | Bearer token | TV-oriented, scores 0–10, posters as relative paths |
 | **Jikan** | REST | none | strict 3 requests/second limit, scores 0–10 |
 
-Learning all three — GraphQL queries, Bearer headers, rate limits, three JSON shapes — just to show an anime card is a lot. **Tsunagi hides all of it** behind one call and gives you back a single, consistent [`Anime`](src/main/java/io/github/diegoalegil/tsunagi/model/Anime.java):
-
-```
-three APIs  ──►  Tsunagi  ──►  one Anime model
-```
-
-> **Tsunagi** (繋ぎ) means *connection*, *link*, *the piece that joins things together*.
+Learning all three — GraphQL queries, Bearer headers, rate limits, three JSON
+shapes — just to show an anime card is a lot. Tsunagi hides all of it and also
+handles rate limiting, retries, caching and timeouts for you.
 
 ## Installation
 
@@ -39,7 +49,7 @@ three APIs  ──►  Tsunagi  ──►  one Anime model
 <dependency>
     <groupId>io.github.diegoalegil</groupId>
     <artifactId>tsunagi</artifactId>
-    <version>0.1.0</version>
+    <version>1.0.0</version>
 </dependency>
 ```
 
@@ -61,15 +71,17 @@ TsunagiConfig config = TsunagiConfig.builder()
 
 TsunagiClient tsunagi = new TsunagiClient(config);
 
-Optional<Anime> result = tsunagi.searchAnime("Cowboy Bebop");
+Optional<Anime> result = tsunagi.searchAnime("Frieren");
 
 result.ifPresent(anime -> {
-    System.out.println(anime.title());        // Cowboy Bebop
-    System.out.println(anime.year());         // 1998
-    System.out.println(anime.averageScore()); // 86.0  (always on a 0–100 scale)
-    System.out.println(anime.imageUrl());
+    System.out.println(anime.title());        // Sousou no Frieren
+    System.out.println(anime.year());         // 2023
+    System.out.println(anime.averageScore()); // e.g. 90.0 (always 0–100)
+    System.out.println(anime.genres());       // [Adventure, Drama, Fantasy]
 });
 ```
+
+## The unified model
 
 The result is always the same `Anime`, no matter which source answered:
 
@@ -80,9 +92,15 @@ public record Anime(
         Integer year,
         String description,
         String imageUrl,
-        Double averageScore   // normalised to 0–100 across all sources
+        Double averageScore,  // normalised to 0–100 across all sources
+        List<String> genres,  // never null (empty when unknown)
+        Integer episodes,
+        String status,        // airing status as reported by the source
+        String source         // "AniList", "TMDb" or "Jikan"
 ) {}
 ```
+
+A field a source does not provide is `null` (or an empty list for `genres`).
 
 ## How it works
 
@@ -93,35 +111,44 @@ public record Anime(
 3. **TMDb** fills in any missing fields (e.g. a poster) when a token is configured — *best-effort*: a TMDb failure never fails your search.
 4. **Jikan** is the fallback when AniList has no match.
 
-Scores from every source are normalised to a **0–100** scale, so `averageScore` always means the same thing.
-
-## Features
-
-- **Unified model** — one `Anime` record for all three sources.
-- **Rate limiting** — a built-in token-bucket limiter keeps Jikan within its 3 req/s limit.
-- **Retries** — transient failures (network, 5xx, 429) are retried with exponential backoff; client errors fail fast.
-- **Caching** — optional in-memory cache with a configurable TTL.
-- **Clean errors** — everything throws `TsunagiException` (or a subtype); no leaking `java.io` checked exceptions.
-- **No heavy dependencies** — just Jackson and the JDK's own HTTP client.
+Scores from every source are normalised to a **0–100** scale, so `averageScore`
+always means the same thing.
 
 ## Configuration
 
-Everything is set through the `TsunagiConfig` builder:
+Everything is set through the `TsunagiConfig` builder. All options are optional
+and have sensible defaults:
 
 ```java
 TsunagiConfig config = TsunagiConfig.builder()
-        .tmdbToken(System.getenv("TMDB_TOKEN")) // enables TMDb enrichment (optional)
-        .cacheEnabled(true)                     // default: false
-        .cacheTtl(Duration.ofMinutes(10))       // default: 10 minutes
-        .retryEnabled(true)                     // default: true
-        .retryMaxAttempts(3)                    // default: 3
+        .tmdbToken(System.getenv("TMDB_TOKEN"))    // default: none (TMDb disabled)
+        .cacheEnabled(true)                        // default: false
+        .cacheTtl(Duration.ofMinutes(10))          // default: 10 minutes
+        .cacheMaxSize(1000)                        // default: 1000 (LRU eviction)
+        .retryEnabled(true)                        // default: true
+        .retryMaxAttempts(3)                       // default: 3
         .retryInitialDelay(Duration.ofMillis(500)) // default: 500 ms
+        .requestTimeout(Duration.ofSeconds(30))    // default: 30 seconds
         .build();
 ```
 
+| Option | Required | Default |
+|--------|----------|---------|
+| `tmdbToken` | optional | none (TMDb enrichment skipped) |
+| `cacheEnabled` / `cacheTtl` / `cacheMaxSize` | optional | `false` / 10 min / 1000 |
+| `retryEnabled` / `retryMaxAttempts` / `retryInitialDelay` | optional | `true` / 3 / 500 ms |
+| `requestTimeout` | optional | 30 s |
+
+### TMDb token
+
+The TMDb token is a **v4 read access token**, taken from your environment — never
+hardcode it. Without it, Tsunagi simply skips the TMDb enrichment step and relies
+on AniList and Jikan.
+
 ## Error handling
 
-All failures are unchecked and rooted at `TsunagiException`, so you only catch what you care about:
+All failures are unchecked and rooted at `TsunagiException`, so you only catch
+what you care about:
 
 ```java
 try {
@@ -131,7 +158,7 @@ try {
 } catch (ApiException e) {
     System.err.println(e.source() + " failed with " + e.statusCode());
 } catch (TsunagiException e) {
-    // any other Tsunagi failure (network, parsing, ...)
+    // any other Tsunagi failure (network, timeout, parsing, ...)
 }
 ```
 
@@ -141,6 +168,9 @@ try {
 | `ApiException` | a source returned a non-2xx status (`source()`, `statusCode()`) |
 | `RateLimitException` | a source returned HTTP 429 |
 | `SourceUnavailableException` | network failure, timeout or interruption |
+
+Transient failures (network, 5xx, 429) are retried with exponential backoff;
+client errors (4xx) fail fast.
 
 ## Using the sources directly
 
@@ -154,15 +184,31 @@ JikanClient jikan = new JikanClient(); // owns a 3 req/s rate limiter
 TmdbClient tmdb = new TmdbClient(System.getenv("TMDB_TOKEN"));
 ```
 
-## Building from source
+## Limitations
+
+- **TMDb** is movie/TV oriented; in Tsunagi it is used mainly for posters and
+  scores. Its search endpoint does not return genres, episode counts or status,
+  so those come from AniList/Jikan.
+- Tsunagi searches and returns the **single best match** per query; it is not a
+  full catalogue/browse API.
+- All calls are **synchronous** (blocking) on the calling thread.
+
+## Building and testing
 
 ```bash
 mvn test          # run the test suite (no network required)
-mvn install       # install 0.1.0 into your local ~/.m2 repository
+mvn install       # install into your local ~/.m2 repository
 ```
 
-The test suite never calls the real APIs: HTTP responses are mapped from canned
-JSON and time-based components use injectable clocks, so it is fast and stable.
+The test suite never calls the real APIs: responses are mapped from canned JSON
+and time-based components use injectable clocks, so it is fast and deterministic.
+A few `@Disabled` manual tests can be run by hand against the live APIs.
+
+A runnable end-to-end example lives in [`examples/quickstart`](examples/quickstart).
+
+## Releasing
+
+Publishing to Maven Central is documented in [RELEASING.md](RELEASING.md).
 
 ## Roadmap
 
@@ -170,11 +216,12 @@ JSON and time-based components use injectable clocks, so it is fast and stable.
 - [x] AniList, TMDb and Jikan clients
 - [x] Token-bucket rate limiting
 - [x] Retries with exponential backoff
-- [x] In-memory caching
+- [x] Bounded in-memory caching
+- [x] HTTP timeouts and input validation
 - [x] Unified `TsunagiClient` facade
 - [x] Maven Central publishing setup
 - [ ] First release on Maven Central
-- [ ] Optional VS Code extension
+- [ ] Optional VS Code extension ([tsunagi-vscode](https://github.com/diegoalegil/tsunagi-vscode))
 
 ## License
 
