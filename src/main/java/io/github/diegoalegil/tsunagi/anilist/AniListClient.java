@@ -1,6 +1,7 @@
 package io.github.diegoalegil.tsunagi.anilist;
 
 import io.github.diegoalegil.tsunagi.model.Anime;
+import io.github.diegoalegil.tsunagi.source.AnimeSource;
 
 import java.io.IOException;
 import java.net.http.HttpRequest;
@@ -16,7 +17,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Map;
 import java.util.Optional;
 
-public class AniListClient {
+public class AniListClient implements AnimeSource {
 
     private static final URI API_URL = URI.create("https://graphql.anilist.co");
 

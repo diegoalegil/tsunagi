@@ -2,6 +2,7 @@ package io.github.diegoalegil.tsunagi.jikan;
 
 import io.github.diegoalegil.tsunagi.model.Anime;
 import io.github.diegoalegil.tsunagi.ratelimit.TokenBucketRateLimiter;
+import io.github.diegoalegil.tsunagi.source.AnimeSource;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -26,7 +27,7 @@ import java.util.Optional;
  * honoured. By default the client owns a 3-requests-per-second limiter, but one
  * can be supplied (and shared) through the constructor.
  */
-public final class JikanClient {
+public final class JikanClient implements AnimeSource {
 
     private static final String SEARCH_URL = "https://api.jikan.moe/v4/anime";
 
