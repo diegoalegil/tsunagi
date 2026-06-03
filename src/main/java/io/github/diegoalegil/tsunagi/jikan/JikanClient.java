@@ -4,6 +4,7 @@ import io.github.diegoalegil.tsunagi.exception.ApiException;
 import io.github.diegoalegil.tsunagi.exception.RateLimitException;
 import io.github.diegoalegil.tsunagi.exception.SourceUnavailableException;
 import io.github.diegoalegil.tsunagi.exception.TsunagiException;
+import io.github.diegoalegil.tsunagi.http.HttpDefaults;
 import io.github.diegoalegil.tsunagi.model.Anime;
 import io.github.diegoalegil.tsunagi.ratelimit.TokenBucketRateLimiter;
 import io.github.diegoalegil.tsunagi.source.AnimeSource;
@@ -38,10 +39,16 @@ public final class JikanClient implements AnimeSource {
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
     private final TokenBucketRateLimiter rateLimiter;
+    private final Duration requestTimeout;
 
     /** Creates a client with its own 3-requests-per-second rate limiter. */
     public JikanClient() {
-        this(new TokenBucketRateLimiter(3, Duration.ofSeconds(1)));
+        this(new TokenBucketRateLimiter(3, Duration.ofSeconds(1)), HttpDefaults.REQUEST_TIMEOUT);
+    }
+
+    /** Creates a client with its own rate limiter and a custom request timeout. */
+    public JikanClient(Duration requestTimeout) {
+        this(new TokenBucketRateLimiter(3, Duration.ofSeconds(1)), requestTimeout);
     }
 
     /**
@@ -49,9 +56,15 @@ public final class JikanClient implements AnimeSource {
      * Jikan-backed components must respect a single global limit.
      */
     public JikanClient(TokenBucketRateLimiter rateLimiter) {
-        this.httpClient = HttpClient.newHttpClient();
+        this(rateLimiter, HttpDefaults.REQUEST_TIMEOUT);
+    }
+
+    /** Creates a client with a shared rate limiter and a custom request timeout. */
+    public JikanClient(TokenBucketRateLimiter rateLimiter, Duration requestTimeout) {
+        this.httpClient = HttpDefaults.newClient();
         this.objectMapper = new ObjectMapper();
         this.rateLimiter = rateLimiter;
+        this.requestTimeout = HttpDefaults.validateRequestTimeout(requestTimeout);
     }
 
     /**
@@ -66,6 +79,7 @@ public final class JikanClient implements AnimeSource {
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(uri)
+                .timeout(requestTimeout)
                 .header("Accept", "application/json")
                 .GET()
                 .build();
