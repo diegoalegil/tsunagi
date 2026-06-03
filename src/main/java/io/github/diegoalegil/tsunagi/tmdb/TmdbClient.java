@@ -4,7 +4,6 @@ import io.github.diegoalegil.tsunagi.exception.ApiException;
 import io.github.diegoalegil.tsunagi.exception.RateLimitException;
 import io.github.diegoalegil.tsunagi.exception.SourceUnavailableException;
 import io.github.diegoalegil.tsunagi.exception.TsunagiException;
-import io.github.diegoalegil.tsunagi.http.HttpDefaults;
 import io.github.diegoalegil.tsunagi.model.Anime;
 import io.github.diegoalegil.tsunagi.source.AnimeSource;
 
@@ -41,6 +40,9 @@ public final class TmdbClient implements AnimeSource {
     // is stable and avoids an extra request per lookup.
     private static final String POSTER_BASE = "https://image.tmdb.org/t/p/w500";
 
+    private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(10);
+    private static final Duration DEFAULT_REQUEST_TIMEOUT = Duration.ofSeconds(30);
+
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
     private final String bearerToken;
@@ -53,7 +55,7 @@ public final class TmdbClient implements AnimeSource {
      * @param bearerToken the TMDb read access token; must not be null or blank
      */
     public TmdbClient(String bearerToken) {
-        this(bearerToken, HttpDefaults.REQUEST_TIMEOUT);
+        this(bearerToken, DEFAULT_REQUEST_TIMEOUT);
     }
 
     /** Creates a client with a custom per-request timeout. */
@@ -61,10 +63,17 @@ public final class TmdbClient implements AnimeSource {
         if (bearerToken == null || bearerToken.isBlank()) {
             throw new IllegalArgumentException("TMDb bearer token must not be null or blank");
         }
-        this.httpClient = HttpDefaults.newClient();
+        this.httpClient = HttpClient.newBuilder().connectTimeout(CONNECT_TIMEOUT).build();
         this.objectMapper = new ObjectMapper();
         this.bearerToken = bearerToken;
-        this.requestTimeout = HttpDefaults.validateRequestTimeout(requestTimeout);
+        this.requestTimeout = requireTimeout(requestTimeout);
+    }
+
+    private static Duration requireTimeout(Duration requestTimeout) {
+        if (requestTimeout == null || requestTimeout.isNegative() || requestTimeout.isZero()) {
+            throw new IllegalArgumentException("requestTimeout must be positive, got " + requestTimeout);
+        }
+        return requestTimeout;
     }
 
     /**

@@ -1,7 +1,6 @@
 package io.github.diegoalegil.tsunagi;
 
 import io.github.diegoalegil.tsunagi.cache.MemoryCache;
-import io.github.diegoalegil.tsunagi.http.HttpDefaults;
 
 import java.time.Duration;
 import java.util.Optional;
@@ -95,7 +94,7 @@ public final class TsunagiConfig {
         private boolean retryEnabled = true;
         private int retryMaxAttempts = 3;
         private Duration retryInitialDelay = Duration.ofMillis(500);
-        private Duration requestTimeout = HttpDefaults.REQUEST_TIMEOUT;
+        private Duration requestTimeout = Duration.ofSeconds(30);
 
         private Builder() {
         }

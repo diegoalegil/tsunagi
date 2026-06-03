@@ -4,7 +4,6 @@ import io.github.diegoalegil.tsunagi.exception.ApiException;
 import io.github.diegoalegil.tsunagi.exception.RateLimitException;
 import io.github.diegoalegil.tsunagi.exception.SourceUnavailableException;
 import io.github.diegoalegil.tsunagi.exception.TsunagiException;
-import io.github.diegoalegil.tsunagi.http.HttpDefaults;
 import io.github.diegoalegil.tsunagi.model.Anime;
 import io.github.diegoalegil.tsunagi.ratelimit.TokenBucketRateLimiter;
 import io.github.diegoalegil.tsunagi.source.AnimeSource;
@@ -38,6 +37,9 @@ public final class JikanClient implements AnimeSource {
 
     private static final String SEARCH_URL = "https://api.jikan.moe/v4/anime";
 
+    private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(10);
+    private static final Duration DEFAULT_REQUEST_TIMEOUT = Duration.ofSeconds(30);
+
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
     private final TokenBucketRateLimiter rateLimiter;
@@ -45,7 +47,7 @@ public final class JikanClient implements AnimeSource {
 
     /** Creates a client with its own 3-requests-per-second rate limiter. */
     public JikanClient() {
-        this(new TokenBucketRateLimiter(3, Duration.ofSeconds(1)), HttpDefaults.REQUEST_TIMEOUT);
+        this(new TokenBucketRateLimiter(3, Duration.ofSeconds(1)), DEFAULT_REQUEST_TIMEOUT);
     }
 
     /** Creates a client with its own rate limiter and a custom request timeout. */
@@ -58,15 +60,22 @@ public final class JikanClient implements AnimeSource {
      * Jikan-backed components must respect a single global limit.
      */
     public JikanClient(TokenBucketRateLimiter rateLimiter) {
-        this(rateLimiter, HttpDefaults.REQUEST_TIMEOUT);
+        this(rateLimiter, DEFAULT_REQUEST_TIMEOUT);
     }
 
     /** Creates a client with a shared rate limiter and a custom request timeout. */
     public JikanClient(TokenBucketRateLimiter rateLimiter, Duration requestTimeout) {
-        this.httpClient = HttpDefaults.newClient();
+        this.httpClient = HttpClient.newBuilder().connectTimeout(CONNECT_TIMEOUT).build();
         this.objectMapper = new ObjectMapper();
         this.rateLimiter = rateLimiter;
-        this.requestTimeout = HttpDefaults.validateRequestTimeout(requestTimeout);
+        this.requestTimeout = requireTimeout(requestTimeout);
+    }
+
+    private static Duration requireTimeout(Duration requestTimeout) {
+        if (requestTimeout == null || requestTimeout.isNegative() || requestTimeout.isZero()) {
+            throw new IllegalArgumentException("requestTimeout must be positive, got " + requestTimeout);
+        }
+        return requestTimeout;
     }
 
     /**
