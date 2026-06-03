@@ -3,6 +3,7 @@ package io.github.diegoalegil.tsunagi.anilist;
 import io.github.diegoalegil.tsunagi.model.Anime;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -31,7 +32,10 @@ class AniListMappingTest {
                       "startDate": { "year": 1998 },
                       "description": "Space bounty hunters.",
                       "coverImage": { "large": "https://img/cb.jpg" },
-                      "averageScore": 86
+                      "averageScore": 86,
+                      "genres": ["Action", "Sci-Fi"],
+                      "episodes": 26,
+                      "status": "FINISHED"
                     }
                   }
                 }
@@ -47,6 +51,10 @@ class AniListMappingTest {
         assertEquals("Space bounty hunters.", anime.description());
         assertEquals("https://img/cb.jpg", anime.imageUrl());
         assertEquals(86.0, anime.averageScore());
+        assertEquals(List.of("Action", "Sci-Fi"), anime.genres());
+        assertEquals(26, anime.episodes());
+        assertEquals("FINISHED", anime.status());
+        assertEquals("AniList", anime.source());
     }
 
     @Test
@@ -92,6 +100,10 @@ class AniListMappingTest {
         assertNull(anime.description());
         assertNull(anime.imageUrl());
         assertNull(anime.averageScore());
+        assertTrue(anime.genres().isEmpty());
+        assertNull(anime.episodes());
+        assertNull(anime.status());
+        assertEquals("AniList", anime.source());
     }
 
     @Test

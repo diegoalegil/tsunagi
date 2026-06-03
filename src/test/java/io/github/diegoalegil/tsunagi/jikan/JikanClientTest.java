@@ -3,6 +3,7 @@ package io.github.diegoalegil.tsunagi.jikan;
 import io.github.diegoalegil.tsunagi.model.Anime;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -31,6 +32,12 @@ class JikanClientTest {
                       "synopsis": "Space bounty hunters.",
                       "year": 1998,
                       "score": 8.75,
+                      "episodes": 26,
+                      "status": "Finished Airing",
+                      "genres": [
+                        { "mal_id": 1, "name": "Action" },
+                        { "mal_id": 24, "name": "Sci-Fi" }
+                      ],
                       "images": { "jpg": {
                         "image_url": "https://img/cb.jpg",
                         "large_image_url": "https://img/cb-large.jpg"
@@ -51,6 +58,10 @@ class JikanClientTest {
         assertEquals("https://img/cb-large.jpg", anime.imageUrl());
         // 8.75 on Jikan's 0-10 scale becomes 87.5 on the unified 0-100 scale.
         assertEquals(87.5, anime.averageScore());
+        assertEquals(List.of("Action", "Sci-Fi"), anime.genres());
+        assertEquals(26, anime.episodes());
+        assertEquals("Finished Airing", anime.status());
+        assertEquals("Jikan", anime.source());
     }
 
     @Test
@@ -92,6 +103,10 @@ class JikanClientTest {
         assertNull(anime.description());
         assertNull(anime.imageUrl());
         assertNull(anime.averageScore());
+        assertTrue(anime.genres().isEmpty());
+        assertNull(anime.episodes());
+        assertNull(anime.status());
+        assertEquals("Jikan", anime.source());
     }
 
     @Test

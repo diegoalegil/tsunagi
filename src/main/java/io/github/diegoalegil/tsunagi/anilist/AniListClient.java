@@ -20,6 +20,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -64,6 +66,9 @@ public final class AniListClient implements AnimeSource {
                   large
                 }
                 averageScore
+                genres
+                episodes
+                status
               }
             }
             """;
@@ -154,6 +159,9 @@ public final class AniListClient implements AnimeSource {
         String description = textOrNull(media.path("description"));
         String imageUrl = textOrNull(media.path("coverImage").path("large"));
         Double averageScore = doubleOrNull(media.path("averageScore"));
+        List<String> genres = parseStringArray(media.path("genres"));
+        Integer episodes = intOrNull(media.path("episodes"));
+        String status = textOrNull(media.path("status"));
 
         return Optional.of(new Anime(
                 id,
@@ -161,7 +169,27 @@ public final class AniListClient implements AnimeSource {
                 year,
                 description,
                 imageUrl,
-                averageScore));
+                averageScore,
+                genres,
+                episodes,
+                status,
+                "AniList"));
+    }
+
+    private List<String> parseStringArray(JsonNode node) {
+        if (!node.isArray()) {
+            return List.of();
+        }
+        List<String> values = new ArrayList<>();
+        for (JsonNode element : node) {
+            if (!element.isNull()) {
+                String text = element.asText();
+                if (!text.isEmpty()) {
+                    values.add(text);
+                }
+            }
+        }
+        return values;
     }
 
     private String textOrNull(JsonNode node) {

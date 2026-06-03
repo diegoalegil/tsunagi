@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -63,7 +64,8 @@ class TsunagiClientTest {
     }
 
     private static Anime complete(String id) {
-        return new Anime(id, "Cowboy Bebop", 1998, "Bounty hunters.", "https://img/cb.jpg", 86.0);
+        return new Anime(id, "Cowboy Bebop", 1998, "Bounty hunters.", "https://img/cb.jpg", 86.0,
+                List.of("Action", "Sci-Fi"), 26, "FINISHED", "AniList");
     }
 
     @Test
@@ -110,10 +112,12 @@ class TsunagiClientTest {
     }
 
     @Test
-    void fillsMissingImageFromTmdb() throws Exception {
-        // AniList result is missing the image; everything else is present.
-        Anime partial = new Anime("anilist:1", "Cowboy Bebop", 1998, "Bounty hunters.", null, 86.0);
-        Anime tmdb = new Anime("tmdb:30991", "Cowboy Bebop TV", 1998, "TV overview.", "https://img/poster.jpg", 85.0);
+    void fillsMissingFieldsFromTmdb() throws Exception {
+        // AniList result is missing the image, genres and episodes.
+        Anime partial = new Anime("anilist:1", "Cowboy Bebop", 1998, "Bounty hunters.", null, 86.0,
+                List.of(), null, null, "AniList");
+        Anime tmdb = new Anime("tmdb:30991", "Cowboy Bebop TV", 1998, "TV overview.", "https://img/poster.jpg", 85.0,
+                List.of("Sci-Fi"), 26, "Returning Series", "TMDb");
 
         FakeSource anilist = FakeSource.returning(partial);
         FakeSource tmdbSource = FakeSource.returning(tmdb);
@@ -123,7 +127,11 @@ class TsunagiClientTest {
 
         assertEquals("anilist:1", result.id());           // identity stays AniList's
         assertEquals("Cowboy Bebop", result.title());     // existing field kept
+        assertEquals("AniList", result.source());         // source stays the primary's
         assertEquals("https://img/poster.jpg", result.imageUrl()); // gap filled from TMDb
+        assertEquals(List.of("Sci-Fi"), result.genres()); // empty genres filled from TMDb
+        assertEquals(26, result.episodes());              // null episodes filled from TMDb
+        assertEquals("Returning Series", result.status());
         assertTrue(tmdbSource.called);
     }
 
@@ -167,7 +175,8 @@ class TsunagiClientTest {
 
     @Test
     void toleratesTmdbFailureAndKeepsAniListResult() throws Exception {
-        Anime partial = new Anime("anilist:1", "Cowboy Bebop", 1998, "Bounty hunters.", null, 86.0);
+        Anime partial = new Anime("anilist:1", "Cowboy Bebop", 1998, "Bounty hunters.", null, 86.0,
+                List.of(), null, null, "AniList");
         FakeSource anilist = FakeSource.returning(partial);
         FakeSource tmdb = FakeSource.failing();
         TsunagiClient client = new TsunagiClient(anilist, tmdb, FakeSource.empty());
