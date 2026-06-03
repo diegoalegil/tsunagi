@@ -174,6 +174,20 @@ public final class TmdbClient implements AnimeSource {
         return get(url.toString(), TmdbSearchResponse.class);
     }
 
+    /**
+     * Searches the {@code /search/multi} endpoint (TV + movies + people). Each
+     * result carries {@code media_type}; filter with {@link TmdbSearchResult#isTv()}
+     * or {@link TmdbSearchResult#isMovie()}. {@code include_adult} is always false;
+     * {@code language} is omitted when null/blank.
+     */
+    public TmdbSearchResponse searchMulti(String query, String language) {
+        StringBuilder url = new StringBuilder(API_BASE)
+                .append("/search/multi?query=").append(URLEncoder.encode(query, StandardCharsets.UTF_8))
+                .append("&include_adult=false");
+        appendLanguage(url, language);
+        return get(url.toString(), TmdbSearchResponse.class);
+    }
+
     /** Fetches {@code /tv/{id}} details (used for the localized overview). */
     public TmdbTvDetailsResponse getTvDetails(Long id, String language) {
         StringBuilder url = new StringBuilder(API_BASE).append("/tv/").append(id);

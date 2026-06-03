@@ -49,7 +49,7 @@ handles rate limiting, retries, caching and timeouts for you.
 <dependency>
     <groupId>io.github.diegoalegil</groupId>
     <artifactId>tsunagi</artifactId>
-    <version>1.1.0</version>
+    <version>1.2.0</version>
 </dependency>
 ```
 
@@ -202,13 +202,16 @@ provides:
 List<AniListMedia> popular = anilist.fetchPopular(50);
 for (AniListMedia m : popular) {
     m.title().romaji();
+    m.title().nativeTitle(); // native-language title (since 1.2.0)
+    m.synonyms();            // alternative titles (since 1.2.0)
     m.studios().nodes();    // studios, incl. isAnimationStudio
     m.characters().edges(); // up to 6 main characters (role, name, image)
     m.tags();               // tags with rank
 }
 
-// TMDb — search, details, watch providers and trailers; you pass the language
+// TMDb — search (TV-only, or TV+movies), details, providers, trailers; you pass the language
 TmdbSearchResponse tv = tmdb.searchTv("Attack on Titan", "es-ES");
+TmdbSearchResponse multi = tmdb.searchMulti("Suzume", "es-ES"); // TV + movies; use isTv()/isMovie() (since 1.2.0)
 long id = tv.results().get(0).id();
 tmdb.getTvDetails(id, "es-ES");   // localized overview
 tmdb.getWatchProviders(id);       // providers by country (flatrate/free/rent/buy)
@@ -256,6 +259,7 @@ Publishing to Maven Central is documented in [RELEASING.md](RELEASING.md).
 - [x] Maven Central publishing setup
 - [x] First release on Maven Central
 - [x] Rich source models + paginated popular fetch (1.1.0)
+- [x] Multi-search (TV+movies), native titles and synonyms (1.2.0)
 - [ ] Optional VS Code extension ([tsunagi-vscode](https://github.com/diegoalegil/tsunagi-vscode))
 
 ## License

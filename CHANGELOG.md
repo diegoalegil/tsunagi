@@ -9,6 +9,20 @@ bump MINOR, and fixes bump PATCH. As of 1.0.0 the public API is considered stabl
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-06-03
+
+Additive release: richer search and title metadata, aimed at cross-source title
+matching (TV vs movie, native titles, synonyms).
+
+### Added
+- `TmdbClient.searchMulti(query, language)` — searches `/search/multi` (TV **and**
+  movies). `TmdbSearchResult` now also carries `title`, `originalTitle`,
+  `releaseDate`, `mediaType` and `originalLanguage`, plus `displayName()`,
+  `displayOriginalName()`, `displayDate()`, `isTv()` and `isMovie()` helpers so TV
+  and movie results read uniformly.
+- `AniListTitle.nativeTitle()` (the native-language title) and
+  `AniListMedia.synonyms()` (alternative titles), both populated by `fetchPopular`.
+
 ## [1.1.0] - 2026-06-03
 
 Additive, backwards-compatible release: the individual source clients gain
@@ -64,6 +78,7 @@ and the `TsunagiException` hierarchy) is now considered stable.
 - Maven Central publishing setup (release profile, signing, Central Portal) and
   GitHub Actions CI.
 
-[Unreleased]: https://github.com/diegoalegil/tsunagi/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/diegoalegil/tsunagi/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/diegoalegil/tsunagi/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/diegoalegil/tsunagi/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/diegoalegil/tsunagi/releases/tag/v1.0.0

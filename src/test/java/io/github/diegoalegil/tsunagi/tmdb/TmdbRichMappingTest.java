@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -53,6 +54,55 @@ class TmdbRichMappingTest {
         assertEquals(List.of("JP"), r.originCountry());
         assertEquals("/aot.jpg", r.posterPath());
         assertEquals(350.5, r.popularity());
+        // A /search/tv result has no media_type / movie fields → treated as TV.
+        assertNull(r.mediaType());
+        assertTrue(r.isTv());
+        assertFalse(r.isMovie());
+        assertEquals("Attack on Titan", r.displayName());
+        assertEquals("進撃の巨人", r.displayOriginalName());
+        assertEquals("2013-04-07", r.displayDate());
+    }
+
+    @Test
+    void parsesMultiResultForMovieUsingDisplayHelpers() throws Exception {
+        // /search/multi mixes tv, movie and person; a movie carries
+        // title/original_title/release_date and media_type = "movie".
+        String json = """
+                {
+                  "page": 1,
+                  "results": [
+                    {
+                      "id": 568332,
+                      "media_type": "movie",
+                      "title": "Suzume",
+                      "original_title": "すずめの戸締まり",
+                      "overview": "A girl closes doors that release disaster.",
+                      "release_date": "2022-11-11",
+                      "origin_country": ["JP"],
+                      "poster_path": "/suzume.jpg",
+                      "popularity": 120.0,
+                      "original_language": "ja"
+                    }
+                  ],
+                  "total_results": 1,
+                  "total_pages": 1
+                }
+                """;
+
+        TmdbSearchResult r = client.parseSearch(json).results().get(0);
+
+        assertEquals(568332L, r.id());
+        assertEquals("movie", r.mediaType());
+        assertTrue(r.isMovie());
+        assertFalse(r.isTv());
+        assertEquals("ja", r.originalLanguage());
+        assertEquals("2022-11-11", r.releaseDate());
+        // name/first_air_date are null for a movie → helpers fall back to title/release_date.
+        assertNull(r.name());
+        assertEquals("Suzume", r.title());
+        assertEquals("Suzume", r.displayName());
+        assertEquals("すずめの戸締まり", r.displayOriginalName());
+        assertEquals("2022-11-11", r.displayDate());
     }
 
     @Test
@@ -84,20 +134,17 @@ class TmdbRichMappingTest {
 
         TmdbCountryProviders es = response.results().get("ES");
         assertEquals("https://example.com/es", es.link());
-        // flatrate provider mapped from snake_case keys.
         TmdbProvider cr = es.flatrate().get(0);
         assertEquals(283, cr.providerId());
         assertEquals("Crunchyroll", cr.providerName());
         assertEquals("/cr.jpg", cr.logoPath());
         assertEquals(1, cr.displayPriority());
-        // All four monetization buckets are present and mapped.
         assertEquals("FreeTV", es.free().get(0).providerName());
         assertEquals("RentTV", es.rent().get(0).providerName());
         assertEquals("BuyTV", es.buy().get(0).providerName());
 
         TmdbCountryProviders mx = response.results().get("MX");
         assertEquals("Netflix", mx.flatrate().get(0).providerName());
-        // Buckets absent in the JSON stay null.
         assertNull(mx.free());
         assertNull(mx.rent());
         assertNull(mx.buy());
@@ -129,8 +176,6 @@ class TmdbRichMappingTest {
 
     @Test
     void parsesTvDetailsIgnoringUnknownFields() throws Exception {
-        // The body carries far more than "overview"; unknown fields must be
-        // ignored (FAIL_ON_UNKNOWN_PROPERTIES = false), not throw.
         String json = """
                 {
                   "id": 1429,
