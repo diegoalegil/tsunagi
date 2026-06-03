@@ -1,5 +1,9 @@
 package io.github.diegoalegil.tsunagi.tmdb;
 
+import io.github.diegoalegil.tsunagi.exception.ApiException;
+import io.github.diegoalegil.tsunagi.exception.RateLimitException;
+import io.github.diegoalegil.tsunagi.exception.SourceUnavailableException;
+import io.github.diegoalegil.tsunagi.exception.TsunagiException;
 import io.github.diegoalegil.tsunagi.model.Anime;
 import io.github.diegoalegil.tsunagi.source.AnimeSource;
 
@@ -56,7 +60,8 @@ public final class TmdbClient implements AnimeSource {
      * Searches TMDb for a TV show by title and returns the first match, or an
      * empty result when nothing matches.
      */
-    public Optional<Anime> searchAnime(String title) throws IOException, InterruptedException {
+    @Override
+    public Optional<Anime> searchAnime(String title) {
         String query = URLEncoder.encode(title, StandardCharsets.UTF_8);
         URI uri = URI.create(SEARCH_URL + "?query=" + query);
 
@@ -67,15 +72,29 @@ public final class TmdbClient implements AnimeSource {
                 .GET()
                 .build();
 
-        HttpResponse<String> response = httpClient.send(
-                request,
-                HttpResponse.BodyHandlers.ofString());
-
-        if (response.statusCode() != 200) {
-            throw new IOException("TMDb request failed with status " + response.statusCode());
+        HttpResponse<String> response;
+        try {
+            response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        } catch (IOException e) {
+            throw new SourceUnavailableException("TMDb", "request failed", e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new SourceUnavailableException("TMDb", "request interrupted", e);
         }
 
-        return parseFirstResult(response.body());
+        int status = response.statusCode();
+        if (status == 429) {
+            throw new RateLimitException("TMDb");
+        }
+        if (status != 200) {
+            throw new ApiException("TMDb", status);
+        }
+
+        try {
+            return parseFirstResult(response.body());
+        } catch (JsonProcessingException e) {
+            throw new TsunagiException("Failed to parse TMDb response", e);
+        }
     }
 
     Optional<Anime> parseFirstResult(String responseBody) throws JsonProcessingException {

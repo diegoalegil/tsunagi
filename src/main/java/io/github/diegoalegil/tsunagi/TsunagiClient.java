@@ -1,12 +1,12 @@
 package io.github.diegoalegil.tsunagi;
 
 import io.github.diegoalegil.tsunagi.anilist.AniListClient;
+import io.github.diegoalegil.tsunagi.exception.TsunagiException;
 import io.github.diegoalegil.tsunagi.jikan.JikanClient;
 import io.github.diegoalegil.tsunagi.model.Anime;
 import io.github.diegoalegil.tsunagi.source.AnimeSource;
 import io.github.diegoalegil.tsunagi.tmdb.TmdbClient;
 
-import java.io.IOException;
 import java.util.Optional;
 
 /**
@@ -60,7 +60,7 @@ public final class TsunagiClient {
      *
      * @return the unified result, or an empty optional when no source matches
      */
-    public Optional<Anime> searchAnime(String title) throws IOException, InterruptedException {
+    public Optional<Anime> searchAnime(String title) {
         Optional<Anime> base = primary.searchAnime(title);
         if (base.isPresent()) {
             return Optional.of(enrich(base.get(), title));
@@ -69,14 +69,14 @@ public final class TsunagiClient {
     }
 
     /** Fills missing fields of the AniList result from TMDb, when worthwhile. */
-    private Anime enrich(Anime base, String title) throws InterruptedException {
+    private Anime enrich(Anime base, String title) {
         if (enricher == null || isComplete(base)) {
             return base;
         }
         try {
             Optional<Anime> extra = enricher.searchAnime(title);
             return extra.map(found -> merge(base, found)).orElse(base);
-        } catch (IOException e) {
+        } catch (TsunagiException e) {
             // Enrichment is best-effort: keep the AniList result if TMDb fails.
             return base;
         }

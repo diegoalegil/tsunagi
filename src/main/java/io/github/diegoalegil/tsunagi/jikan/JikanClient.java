@@ -1,5 +1,9 @@
 package io.github.diegoalegil.tsunagi.jikan;
 
+import io.github.diegoalegil.tsunagi.exception.ApiException;
+import io.github.diegoalegil.tsunagi.exception.RateLimitException;
+import io.github.diegoalegil.tsunagi.exception.SourceUnavailableException;
+import io.github.diegoalegil.tsunagi.exception.TsunagiException;
 import io.github.diegoalegil.tsunagi.model.Anime;
 import io.github.diegoalegil.tsunagi.ratelimit.TokenBucketRateLimiter;
 import io.github.diegoalegil.tsunagi.source.AnimeSource;
@@ -54,7 +58,8 @@ public final class JikanClient implements AnimeSource {
      * Searches MyAnimeList (via Jikan) for an anime by title and returns the first
      * match, or an empty result when nothing matches.
      */
-    public Optional<Anime> searchAnime(String title) throws IOException, InterruptedException {
+    @Override
+    public Optional<Anime> searchAnime(String title) {
         String query = URLEncoder.encode(title, StandardCharsets.UTF_8);
         URI uri = URI.create(SEARCH_URL + "?q=" + query + "&limit=1");
 
@@ -64,18 +69,31 @@ public final class JikanClient implements AnimeSource {
                 .GET()
                 .build();
 
-        // Block until the rate limiter grants a token, so we never exceed 3 req/s.
-        rateLimiter.acquire();
-
-        HttpResponse<String> response = httpClient.send(
-                request,
-                HttpResponse.BodyHandlers.ofString());
-
-        if (response.statusCode() != 200) {
-            throw new IOException("Jikan request failed with status " + response.statusCode());
+        HttpResponse<String> response;
+        try {
+            // Block until the rate limiter grants a token, so we never exceed 3 req/s.
+            rateLimiter.acquire();
+            response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        } catch (IOException e) {
+            throw new SourceUnavailableException("Jikan", "request failed", e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new SourceUnavailableException("Jikan", "request interrupted", e);
         }
 
-        return parseFirstResult(response.body());
+        int status = response.statusCode();
+        if (status == 429) {
+            throw new RateLimitException("Jikan");
+        }
+        if (status != 200) {
+            throw new ApiException("Jikan", status);
+        }
+
+        try {
+            return parseFirstResult(response.body());
+        } catch (JsonProcessingException e) {
+            throw new TsunagiException("Failed to parse Jikan response", e);
+        }
     }
 
     Optional<Anime> parseFirstResult(String responseBody) throws JsonProcessingException {
