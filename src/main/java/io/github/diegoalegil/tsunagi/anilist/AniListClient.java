@@ -21,7 +21,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Map;
 import java.util.Optional;
 
-public class AniListClient implements AnimeSource {
+public final class AniListClient implements AnimeSource {
 
     private static final URI API_URL = URI.create("https://graphql.anilist.co");
 
@@ -58,7 +58,7 @@ public class AniListClient implements AnimeSource {
             }
             """;
 
-    public String buildSearchRequestBody(String title) throws JsonProcessingException {
+    String buildSearchRequestBody(String title) throws JsonProcessingException {
         Map<String, Object> payload = Map.of(
                 "query", SEARCH_QUERY,
                 "variables", Map.of("search", title));
