@@ -1,10 +1,15 @@
 package io.github.diegoalegil.tsunagi;
 
+import io.github.diegoalegil.tsunagi.cache.MemoryCache;
+import io.github.diegoalegil.tsunagi.exception.SourceUnavailableException;
 import io.github.diegoalegil.tsunagi.exception.TsunagiException;
+import io.github.diegoalegil.tsunagi.http.RetryPolicy;
 import io.github.diegoalegil.tsunagi.model.Anime;
 import io.github.diegoalegil.tsunagi.source.AnimeSource;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
+import java.time.Duration;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -17,29 +22,39 @@ class TsunagiClientTest {
     private static final class FakeSource implements AnimeSource {
         private final Optional<Anime> result;
         private final TsunagiException failure;
+        private final int failTimes;
         boolean called;
+        int calls;
 
-        private FakeSource(Optional<Anime> result, TsunagiException failure) {
+        private FakeSource(Optional<Anime> result, TsunagiException failure, int failTimes) {
             this.result = result;
             this.failure = failure;
+            this.failTimes = failTimes;
         }
 
         static FakeSource returning(Anime anime) {
-            return new FakeSource(Optional.of(anime), null);
+            return new FakeSource(Optional.of(anime), null, 0);
         }
 
         static FakeSource empty() {
-            return new FakeSource(Optional.empty(), null);
+            return new FakeSource(Optional.empty(), null, 0);
         }
 
         static FakeSource failing() {
-            return new FakeSource(Optional.empty(), new TsunagiException("boom"));
+            return new FakeSource(Optional.empty(), new TsunagiException("boom"), Integer.MAX_VALUE);
+        }
+
+        static FakeSource transientThenReturning(int failTimes, Anime anime) {
+            TsunagiException transientError =
+                    new SourceUnavailableException("Fake", "temporary", new IOException("down"));
+            return new FakeSource(Optional.of(anime), transientError, failTimes);
         }
 
         @Override
         public Optional<Anime> searchAnime(String title) {
             called = true;
-            if (failure != null) {
+            calls++;
+            if (calls <= failTimes) {
                 throw failure;
             }
             return result;
@@ -111,6 +126,32 @@ class TsunagiClientTest {
 
         assertEquals("anilist:1", result.id());
         assertFalse(tmdb.called, "TMDb should not be queried when the result is already complete");
+    }
+
+    @Test
+    void cachesResultsAndDoesNotHitSourcesTwice() throws Exception {
+        FakeSource anilist = FakeSource.returning(complete("anilist:1"));
+        MemoryCache<String, Optional<Anime>> cache = new MemoryCache<>(Duration.ofMinutes(10));
+        TsunagiClient client = new TsunagiClient(anilist, null, FakeSource.empty(), cache, null);
+
+        Optional<Anime> first = client.searchAnime("Cowboy Bebop");
+        Optional<Anime> second = client.searchAnime("Cowboy Bebop");
+
+        assertEquals(first, second);
+        assertEquals(1, anilist.calls, "the second search should be served from the cache");
+    }
+
+    @Test
+    void retriesTransientSourceFailures() throws Exception {
+        // AniList fails twice transiently, then returns on the third attempt.
+        FakeSource anilist = FakeSource.transientThenReturning(2, complete("anilist:1"));
+        RetryPolicy retry = RetryPolicy.exponentialBackoff(3, Duration.ofMillis(1));
+        TsunagiClient client = new TsunagiClient(anilist, null, FakeSource.empty(), null, retry);
+
+        Anime result = client.searchAnime("Cowboy Bebop").orElseThrow();
+
+        assertEquals("anilist:1", result.id());
+        assertEquals(3, anilist.calls);
     }
 
     @Test
