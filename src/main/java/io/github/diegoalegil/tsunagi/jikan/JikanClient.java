@@ -21,6 +21,8 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -145,7 +147,32 @@ public final class JikanClient implements AnimeSource {
             averageScore = scoreNode.asDouble() * 10.0;
         }
 
-        return Optional.of(new Anime(id, title, year, description, imageUrl, averageScore));
+        List<String> genres = parseGenreNames(media.path("genres"));
+        Integer episodes = intOrNull(media.path("episodes"));
+        String status = textOrNull(media.path("status"));
+
+        return Optional.of(new Anime(
+                id, title, year, description, imageUrl, averageScore,
+                genres, episodes, status, "Jikan"));
+    }
+
+    /** Reads the "name" of each object in a Jikan genres-style array. */
+    private List<String> parseGenreNames(JsonNode node) {
+        if (!node.isArray()) {
+            return List.of();
+        }
+        List<String> names = new ArrayList<>();
+        for (JsonNode element : node) {
+            String name = textOrNull(element.path("name"));
+            if (name != null) {
+                names.add(name);
+            }
+        }
+        return names;
+    }
+
+    private Integer intOrNull(JsonNode node) {
+        return node.isInt() ? node.asInt() : null;
     }
 
     /** Reads the top-level "year", falling back to aired.prop.from.year. */

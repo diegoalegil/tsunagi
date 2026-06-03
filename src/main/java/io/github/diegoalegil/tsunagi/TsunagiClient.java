@@ -138,7 +138,7 @@ public final class TsunagiClient {
                 && anime.averageScore() != null;
     }
 
-    /** Keeps the base (AniList) values and fills only the null ones from {@code extra}. */
+    /** Keeps the base (AniList) values and fills only the missing ones from {@code extra}. */
     private Anime merge(Anime base, Anime extra) {
         return new Anime(
                 base.id(),
@@ -146,6 +146,10 @@ public final class TsunagiClient {
                 base.year() != null ? base.year() : extra.year(),
                 base.description() != null ? base.description() : extra.description(),
                 base.imageUrl() != null ? base.imageUrl() : extra.imageUrl(),
-                base.averageScore() != null ? base.averageScore() : extra.averageScore());
+                base.averageScore() != null ? base.averageScore() : extra.averageScore(),
+                !base.genres().isEmpty() ? base.genres() : extra.genres(),
+                base.episodes() != null ? base.episodes() : extra.episodes(),
+                base.status() != null ? base.status() : extra.status(),
+                base.source());
     }
 }

@@ -20,6 +20,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -139,7 +140,12 @@ public final class TmdbClient implements AnimeSource {
             averageScore = voteNode.asDouble() * 10.0;
         }
 
-        return Optional.of(new Anime(id, title, year, description, imageUrl, averageScore));
+        // The /search/tv endpoint does not include genres (only numeric
+        // genre_ids), episode counts or status, so those are left empty/null.
+        // TMDb's role in Tsunagi is posters and scores.
+        return Optional.of(new Anime(
+                id, title, year, description, imageUrl, averageScore,
+                List.of(), null, null, "TMDb"));
     }
 
     /** Extracts the year from a "YYYY-MM-DD" first air date, or null if absent. */

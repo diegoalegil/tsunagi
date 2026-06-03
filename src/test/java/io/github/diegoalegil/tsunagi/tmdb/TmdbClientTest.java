@@ -3,6 +3,7 @@ package io.github.diegoalegil.tsunagi.tmdb;
 import io.github.diegoalegil.tsunagi.model.Anime;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -47,6 +48,11 @@ class TmdbClientTest {
         assertEquals("https://image.tmdb.org/t/p/w500/abc.jpg", anime.imageUrl());
         // 8.5 on TMDb's 0-10 scale becomes 85.0 on the unified 0-100 scale.
         assertEquals(85.0, anime.averageScore());
+        assertEquals("TMDb", anime.source());
+        // /search/tv does not include genres, episodes or status.
+        assertEquals(List.of(), anime.genres());
+        assertNull(anime.episodes());
+        assertNull(anime.status());
     }
 
     @Test
