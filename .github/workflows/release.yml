@@ -23,11 +23,11 @@ jobs:
       - name: Check out the code
         uses: actions/checkout@v4
 
-      - name: Set up JDK 21 and Maven settings
+      - name: Set up JDK 17 and Maven settings
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '21'
+          java-version: '17'
           cache: maven
           server-id: central
           server-username: CENTRAL_USERNAME
