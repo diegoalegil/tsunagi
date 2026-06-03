@@ -1,6 +1,7 @@
 package io.github.diegoalegil.tsunagi.tmdb;
 
 import io.github.diegoalegil.tsunagi.model.Anime;
+import io.github.diegoalegil.tsunagi.source.AnimeSource;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -24,7 +25,7 @@ import java.util.Optional;
  * <p>The Bearer token is a secret and is provided through the constructor; it is
  * never logged or hardcoded.
  */
-public final class TmdbClient {
+public final class TmdbClient implements AnimeSource {
 
     private static final String SEARCH_URL = "https://api.themoviedb.org/3/search/tv";
 
