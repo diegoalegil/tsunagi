@@ -181,45 +181,77 @@ client errors (4xx) fail fast.
 
 ## Using the sources directly
 
-The individual clients are public too, if you only want one:
+The three clients are public, so you can use one on its own — and they expose
+much more than the unified `searchAnime`.
 
 ```java
 AniListClient anilist = new AniListClient();
-Optional<Anime> anime = anilist.searchAnime("Naruto");
+TmdbClient    tmdb    = new TmdbClient(System.getenv("TMDB_TOKEN"));
+JikanClient   jikan   = new JikanClient(); // owns a 3 req/s rate limiter
 
-JikanClient jikan = new JikanClient(); // owns a 3 req/s rate limiter
-TmdbClient tmdb = new TmdbClient(System.getenv("TMDB_TOKEN"));
+Optional<Anime> anime = anilist.searchAnime("Naruto"); // unified Anime, like the facade
 ```
 
-### Rich source models (since 1.1.0)
-
-Beyond the unified `Anime`, the AniList and TMDb clients expose each source's
-richer data directly, as source-shaped records — so you get every field the API
-provides:
+Each client also has a **canonical constructor** that accepts an optional
+`userAgent`, a `RetryPolicy` and a `TokenBucketRateLimiter`, so you can add
+identification, retries and rate limiting per source:
 
 ```java
-// AniList — most popular anime, paginated internally, with full metadata
-List<AniListMedia> popular = anilist.fetchPopular(50);
-for (AniListMedia m : popular) {
-    m.title().romaji();
-    m.title().nativeTitle(); // native-language title (since 1.2.0)
-    m.synonyms();            // alternative titles (since 1.2.0)
-    m.studios().nodes();    // studios, incl. isAnimationStudio
-    m.characters().edges(); // up to 6 main characters (role, name, image)
-    m.tags();               // tags with rank
-}
-
-// TMDb — search (TV-only, or TV+movies), details, providers, trailers; you pass the language
-TmdbSearchResponse tv = tmdb.searchTv("Attack on Titan", "es-ES");
-TmdbSearchResponse multi = tmdb.searchMulti("Suzume", "es-ES"); // TV + movies; use isTv()/isMovie() (since 1.2.0)
-long id = tv.results().get(0).id();
-tmdb.getTvDetails(id, "es-ES");   // localized overview
-tmdb.getWatchProviders(id);       // providers by country (flatrate/free/rent/buy)
-tmdb.getTrailers(id, "es-ES");    // videos (YouTube keys, ...)
+AniListClient anilist = new AniListClient(
+        Duration.ofSeconds(30),
+        "MyApp/1.0 (+https://example.com)",                  // userAgent — opt-in (see note above)
+        RetryPolicy.exponentialBackoff(3, Duration.ofMillis(500)),
+        new TokenBucketRateLimiter(3, Duration.ofSeconds(1)));
 ```
 
-Both clients also accept optional `userAgent`, `RetryPolicy` and
-`TokenBucketRateLimiter` parameters through their canonical constructors.
+### AniList — rich models & popular feed (since 1.1.0)
+
+`fetchPopular(count)` returns the most popular anime (paginated internally,
+50/page) as source-shaped `AniListMedia` records carrying everything AniList
+provides — far more than the unified `Anime`:
+
+```java
+List<AniListMedia> popular = anilist.fetchPopular(50);
+for (AniListMedia m : popular) {
+    m.title().romaji();       // also .english(), .nativeTitle() (1.2.0)
+    m.synonyms();             // alternative titles (1.2.0)
+    m.startDate();            // fuzzy date: year / month / day (any may be null)
+    m.episodes();             // + duration, format, status, averageScore, popularity, description
+    m.coverImage().large();   // + bannerImage(), genres(), season()/seasonYear()
+    m.studios().nodes();      // studios, each with isAnimationStudio
+    m.characters().edges();   // up to 6 MAIN characters (role, name.full()/nativeName(), image)
+    m.tags();                 // tags with a relevance rank
+}
+```
+
+### TMDb — search, details, providers, trailers (since 1.1.0)
+
+Every method takes the `language` as a parameter (pass `null`/blank to omit it).
+IDs, poster and logo paths are returned raw.
+
+| Method | Endpoint | Returns |
+|--------|----------|---------|
+| `searchTv(query, lang)` | `/search/tv` | TV results |
+| `searchMulti(query, lang)` *(1.2.0)* | `/search/multi` | TV **and** movies (`media_type`) |
+| `getTvDetails(id, lang)` | `/tv/{id}` | localized overview |
+| `getWatchProviders(id)` | `/tv/{id}/watch/providers` | providers by country (flatrate/free/rent/buy) |
+| `getTrailers(id, lang)` | `/tv/{id}/videos` | videos (e.g. YouTube trailers) |
+
+```java
+TmdbSearchResponse res = tmdb.searchMulti("Suzume", "es-ES");
+for (TmdbSearchResult r : res.results()) {
+    if (r.isTv() || r.isMovie()) {     // /search/multi also returns people — skip them
+        r.displayName();        // name (TV) or title (movie)
+        r.displayDate();        // first_air_date (TV) or release_date (movie)
+        r.mediaType();          // "tv" / "movie"
+        r.originalLanguage();   // (1.2.0)
+    }
+}
+```
+
+`TmdbSearchResult` unifies the TV and movie shapes: the `display*()` and
+`isTv()`/`isMovie()` helpers (1.2.0) read either kind without branching on the
+raw `name`/`title` fields yourself.
 
 ## Limitations
 
