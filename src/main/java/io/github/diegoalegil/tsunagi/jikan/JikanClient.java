@@ -4,9 +4,12 @@ import io.github.diegoalegil.tsunagi.exception.ApiException;
 import io.github.diegoalegil.tsunagi.exception.RateLimitException;
 import io.github.diegoalegil.tsunagi.exception.SourceUnavailableException;
 import io.github.diegoalegil.tsunagi.exception.TsunagiException;
+import io.github.diegoalegil.tsunagi.http.RetryPolicy;
 import io.github.diegoalegil.tsunagi.model.Anime;
 import io.github.diegoalegil.tsunagi.ratelimit.TokenBucketRateLimiter;
 import io.github.diegoalegil.tsunagi.source.AnimeSource;
+
+import org.jspecify.annotations.Nullable;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -23,6 +26,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 /**
  * Client for the <a href="https://jikan.moe">Jikan</a> REST API, an unofficial
@@ -35,7 +39,7 @@ import java.util.Optional;
  */
 public final class JikanClient implements AnimeSource {
 
-    private static final String SEARCH_URL = "https://api.jikan.moe/v4/anime";
+    private static final String DEFAULT_SEARCH_URL = "https://api.jikan.moe/v4/anime";
 
     private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(10);
     private static final Duration DEFAULT_REQUEST_TIMEOUT = Duration.ofSeconds(30);
@@ -43,7 +47,11 @@ public final class JikanClient implements AnimeSource {
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
     private final TokenBucketRateLimiter rateLimiter;
+    private final @Nullable RetryPolicy retryPolicy;
     private final Duration requestTimeout;
+    // The search endpoint. Configurable only through a package-private constructor
+    // so tests can target a local server; public constructors use the real host.
+    private final String searchUrl;
 
     /** Creates a client with its own 3-requests-per-second rate limiter. */
     public JikanClient() {
@@ -65,10 +73,37 @@ public final class JikanClient implements AnimeSource {
 
     /** Creates a client with a shared rate limiter and a custom request timeout. */
     public JikanClient(TokenBucketRateLimiter rateLimiter, Duration requestTimeout) {
+        this(rateLimiter, null, requestTimeout);
+    }
+
+    /**
+     * Creates a client with a shared rate limiter and an optional retry policy.
+     * The retry policy lets transient failures (5xx, rate limits, network blips)
+     * be retried with backoff, just like the AniList and TMDb clients.
+     */
+    public JikanClient(TokenBucketRateLimiter rateLimiter, @Nullable RetryPolicy retryPolicy) {
+        this(rateLimiter, retryPolicy, DEFAULT_REQUEST_TIMEOUT);
+    }
+
+    /**
+     * Canonical constructor.
+     *
+     * @param rateLimiter    the rate limiter honoured before every request; required
+     * @param retryPolicy    optional retry policy wrapping each search; may be null
+     * @param requestTimeout per-request HTTP timeout; must be positive
+     */
+    public JikanClient(TokenBucketRateLimiter rateLimiter, @Nullable RetryPolicy retryPolicy, Duration requestTimeout) {
+        this(rateLimiter, retryPolicy, requestTimeout, DEFAULT_SEARCH_URL);
+    }
+
+    /** Package-private test seam: lets tests point the client at a local server. */
+    JikanClient(TokenBucketRateLimiter rateLimiter, @Nullable RetryPolicy retryPolicy, Duration requestTimeout, String searchUrl) {
         this.httpClient = HttpClient.newBuilder().connectTimeout(CONNECT_TIMEOUT).build();
         this.objectMapper = new ObjectMapper();
         this.rateLimiter = rateLimiter;
+        this.retryPolicy = retryPolicy;
         this.requestTimeout = requireTimeout(requestTimeout);
+        this.searchUrl = searchUrl;
     }
 
     private static Duration requireTimeout(Duration requestTimeout) {
@@ -86,7 +121,21 @@ public final class JikanClient implements AnimeSource {
     public Optional<Anime> searchAnime(String title) {
         AnimeSource.requireSearchTitle(title);
         String query = URLEncoder.encode(title, StandardCharsets.UTF_8);
-        URI uri = URI.create(SEARCH_URL + "?q=" + query + "&limit=1");
+        URI uri = URI.create(searchUrl + "?q=" + query + "&limit=1");
+
+        // Each attempt re-acquires a rate-limiter token, so retries also stay
+        // within the 3-requests-per-second budget. Parsing happens outside the
+        // retry policy: a malformed body is permanent, not transient.
+        String body = withPolicies(() -> fetchBody(uri));
+        try {
+            return parseFirstResult(body);
+        } catch (JsonProcessingException e) {
+            throw new TsunagiException("Failed to parse Jikan response", e);
+        }
+    }
+
+    private String fetchBody(URI uri) {
+        acquire();
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(uri)
@@ -97,8 +146,6 @@ public final class JikanClient implements AnimeSource {
 
         HttpResponse<String> response;
         try {
-            // Block until the rate limiter grants a token, so we never exceed 3 req/s.
-            rateLimiter.acquire();
             response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
         } catch (IOException e) {
             throw new SourceUnavailableException("Jikan", "request failed", e);
@@ -114,11 +161,21 @@ public final class JikanClient implements AnimeSource {
         if (status != 200) {
             throw new ApiException("Jikan", status);
         }
+        return response.body();
+    }
 
+    /** Runs an operation under the retry policy when one is configured. */
+    private <T> T withPolicies(Supplier<T> operation) {
+        return (retryPolicy != null) ? retryPolicy.execute(operation) : operation.get();
+    }
+
+    /** Blocks until the rate limiter grants a token, so we never exceed 3 req/s. */
+    private void acquire() {
         try {
-            return parseFirstResult(response.body());
-        } catch (JsonProcessingException e) {
-            throw new TsunagiException("Failed to parse Jikan response", e);
+            rateLimiter.acquire();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new SourceUnavailableException("Jikan", "interrupted while rate limiting", e);
         }
     }
 
@@ -133,7 +190,13 @@ public final class JikanClient implements AnimeSource {
 
         JsonNode media = data.get(0);
 
-        String id = "jikan:" + media.get("mal_id").asInt();
+        // A result without a usable numeric mal_id is malformed; treat it as no
+        // result instead of crashing on a missing/non-numeric field.
+        JsonNode idNode = media.path("mal_id");
+        if (!idNode.canConvertToInt()) {
+            return Optional.empty();
+        }
+        String id = "jikan:" + idNode.asInt();
 
         String title = firstNonNullText(
                 media.path("title"),
@@ -180,12 +243,12 @@ public final class JikanClient implements AnimeSource {
         return names;
     }
 
-    private Integer intOrNull(JsonNode node) {
+    private @Nullable Integer intOrNull(JsonNode node) {
         return node.isInt() ? node.asInt() : null;
     }
 
     /** Reads the top-level "year", falling back to aired.prop.from.year. */
-    private Integer readYear(JsonNode media) {
+    private @Nullable Integer readYear(JsonNode media) {
         JsonNode yearNode = media.path("year");
         if (yearNode.isInt()) {
             return yearNode.asInt();
@@ -194,11 +257,11 @@ public final class JikanClient implements AnimeSource {
         return airedYear.isInt() ? airedYear.asInt() : null;
     }
 
-    private String textOrNull(JsonNode node) {
+    private @Nullable String textOrNull(JsonNode node) {
         return (node.isMissingNode() || node.isNull()) ? null : node.asText();
     }
 
-    private String firstNonNullText(JsonNode... nodes) {
+    private @Nullable String firstNonNullText(JsonNode... nodes) {
         for (JsonNode node : nodes) {
             if (node != null && !node.isMissingNode() && !node.isNull()) {
                 String text = node.asText();

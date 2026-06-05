@@ -106,6 +106,45 @@ class TmdbRichMappingTest {
     }
 
     @Test
+    void parsesMultiResultMixingTvMovieAndPerson() throws Exception {
+        // /search/multi can return tv, movie and person entries in one payload.
+        // isTv()/isMovie() must classify each so callers can filter cleanly.
+        String json = """
+                {
+                  "page": 1,
+                  "results": [
+                    { "id": 1, "media_type": "tv", "name": "Naruto", "first_air_date": "2002-10-03" },
+                    { "id": 2, "media_type": "movie", "title": "Your Name", "release_date": "2016-08-26" },
+                    { "id": 3, "media_type": "person", "name": "Hayao Miyazaki" }
+                  ],
+                  "total_results": 3,
+                  "total_pages": 1
+                }
+                """;
+
+        List<TmdbSearchResult> results = client.parseSearch(json).results();
+
+        assertEquals(3, results.size());
+
+        TmdbSearchResult tv = results.get(0);
+        assertTrue(tv.isTv());
+        assertFalse(tv.isMovie());
+        assertEquals("Naruto", tv.displayName());
+        assertEquals("2002-10-03", tv.displayDate());
+
+        TmdbSearchResult movie = results.get(1);
+        assertTrue(movie.isMovie());
+        assertFalse(movie.isTv());
+        assertEquals("Your Name", movie.displayName());
+        assertEquals("2016-08-26", movie.displayDate());
+
+        // A person is neither tv nor movie; callers filter it out via the helpers.
+        TmdbSearchResult person = results.get(2);
+        assertFalse(person.isTv());
+        assertFalse(person.isMovie());
+    }
+
+    @Test
     void parsesProvidersForMultipleCountriesAndAllTypes() throws Exception {
         String json = """
                 {

@@ -9,6 +9,8 @@ import io.github.diegoalegil.tsunagi.model.Anime;
 import io.github.diegoalegil.tsunagi.source.AnimeSource;
 import io.github.diegoalegil.tsunagi.tmdb.TmdbClient;
 
+import org.jspecify.annotations.Nullable;
+
 import java.util.Optional;
 
 /**
@@ -42,10 +44,10 @@ import java.util.Optional;
 public final class TsunagiClient {
 
     private final AnimeSource primary;   // AniList
-    private final AnimeSource enricher;  // TMDb, may be null when no token is configured
+    private final @Nullable AnimeSource enricher;  // TMDb, may be null when no token is configured
     private final AnimeSource fallback;  // Jikan
-    private final MemoryCache<String, Optional<Anime>> cache; // null when caching is disabled
-    private final RetryPolicy retryPolicy; // null when retries are disabled
+    private final @Nullable MemoryCache<String, Optional<Anime>> cache; // null when caching is disabled
+    private final @Nullable RetryPolicy retryPolicy; // null when retries are disabled
 
     /** Builds a client with the real AniList, TMDb (if a token is set) and Jikan sources. */
     public TsunagiClient(TsunagiConfig config) {
@@ -63,16 +65,16 @@ public final class TsunagiClient {
     }
 
     /** Package-private constructor used by tests to inject fake sources (no cache, no retry). */
-    TsunagiClient(AnimeSource primary, AnimeSource enricher, AnimeSource fallback) {
+    TsunagiClient(AnimeSource primary, @Nullable AnimeSource enricher, AnimeSource fallback) {
         this(primary, enricher, fallback, null, null);
     }
 
     /** Package-private constructor used by tests to inject every collaborator. */
     TsunagiClient(AnimeSource primary,
-                  AnimeSource enricher,
+                  @Nullable AnimeSource enricher,
                   AnimeSource fallback,
-                  MemoryCache<String, Optional<Anime>> cache,
-                  RetryPolicy retryPolicy) {
+                  @Nullable MemoryCache<String, Optional<Anime>> cache,
+                  @Nullable RetryPolicy retryPolicy) {
         this.primary = primary;
         this.enricher = enricher;
         this.fallback = fallback;

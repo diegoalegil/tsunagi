@@ -2,6 +2,7 @@ package io.github.diegoalegil.tsunagi.tmdb;
 
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Map;
 
@@ -11,7 +12,7 @@ import java.util.Map;
  */
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public record TmdbProvidersResponse(
-        Long id,
-        Map<String, TmdbCountryProviders> results
+        @Nullable Long id,
+        @Nullable Map<String, TmdbCountryProviders> results
 ) {
 }

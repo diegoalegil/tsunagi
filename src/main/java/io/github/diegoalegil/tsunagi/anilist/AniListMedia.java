@@ -1,5 +1,7 @@
 package io.github.diegoalegil.tsunagi.anilist;
 
+import org.jspecify.annotations.Nullable;
+
 import java.util.List;
 
 /**
@@ -11,25 +13,25 @@ import java.util.List;
  * omits is deserialized as {@code null} (or an empty list).
  */
 public record AniListMedia(
-        Long id,
-        AniListTitle title,
-        AniListFuzzyDate startDate,
-        AniListFuzzyDate endDate,
-        Integer episodes,
-        Integer duration,
-        String format,
-        String status,
-        Integer averageScore,
-        Integer popularity,
-        String description,
-        AniListCoverImage coverImage,
-        String bannerImage,
-        List<String> genres,
-        List<String> synonyms,
-        AniListStudioConnection studios,
-        String season,
-        Integer seasonYear,
-        AniListCharacterConnection characters,
-        List<AniListTag> tags
+        @Nullable Long id,
+        @Nullable AniListTitle title,
+        @Nullable AniListFuzzyDate startDate,
+        @Nullable AniListFuzzyDate endDate,
+        @Nullable Integer episodes,
+        @Nullable Integer duration,
+        @Nullable String format,
+        @Nullable String status,
+        @Nullable Integer averageScore,
+        @Nullable Integer popularity,
+        @Nullable String description,
+        @Nullable AniListCoverImage coverImage,
+        @Nullable String bannerImage,
+        @Nullable List<String> genres,
+        @Nullable List<String> synonyms,
+        @Nullable AniListStudioConnection studios,
+        @Nullable String season,
+        @Nullable Integer seasonYear,
+        @Nullable AniListCharacterConnection characters,
+        @Nullable List<AniListTag> tags
 ) {
 }

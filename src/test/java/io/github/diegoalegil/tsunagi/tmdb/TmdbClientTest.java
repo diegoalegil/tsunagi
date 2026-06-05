@@ -91,6 +91,14 @@ class TmdbClientTest {
     }
 
     @Test
+    void returnsEmptyWhenResultHasNoUsableId() throws Exception {
+        // A malformed result missing id must not crash with a NullPointerException.
+        Optional<Anime> result = client.parseFirstResult("{ \"results\": [ { \"name\": \"No Id Show\" } ] }");
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
     void rejectsNullOrBlankTitle() {
         assertThrows(IllegalArgumentException.class, () -> client.searchAnime(null));
         assertThrows(IllegalArgumentException.class, () -> client.searchAnime("   "));

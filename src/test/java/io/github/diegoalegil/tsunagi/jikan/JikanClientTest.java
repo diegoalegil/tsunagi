@@ -110,6 +110,18 @@ class JikanClientTest {
     }
 
     @Test
+    void returnsEmptyWhenResultHasNoUsableId() throws Exception {
+        // A malformed result missing mal_id must not crash with a NullPointerException.
+        String json = """
+                { "data": [ { "title": "No Id Anime" } ] }
+                """;
+
+        Optional<Anime> result = client.parseFirstResult(json);
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
     void fallsBackToAiredYearWhenTopLevelYearIsMissing() throws Exception {
         String json = """
                 {

@@ -2,6 +2,7 @@ package io.github.diegoalegil.tsunagi.tmdb;
 
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
+import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 
@@ -12,9 +13,9 @@ import java.util.List;
  */
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public record TmdbSearchResponse(
-        Integer page,
-        List<TmdbSearchResult> results,
-        Integer totalResults,
-        Integer totalPages
+        @Nullable Integer page,
+        @Nullable List<TmdbSearchResult> results,
+        @Nullable Integer totalResults,
+        @Nullable Integer totalPages
 ) {
 }

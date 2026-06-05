@@ -2,6 +2,7 @@ package io.github.diegoalegil.tsunagi.tmdb;
 
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A single video entry. {@code key} is the provider-specific id (e.g. a YouTube
@@ -10,9 +11,9 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
  */
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public record TmdbVideo(
-        String key,
-        String site,
-        String type,
-        String name
+        @Nullable String key,
+        @Nullable String site,
+        @Nullable String type,
+        @Nullable String name
 ) {
 }

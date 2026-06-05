@@ -9,6 +9,40 @@ bump MINOR, and fixes bump PATCH. As of 1.0.0 the public API is considered stabl
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-06-05
+
+Hardening release: resilience, consistency and quality. No breaking changes; the
+only new public API is an optional retry policy for `JikanClient`.
+
+### Added
+- `JikanClient` now accepts an optional `RetryPolicy` (new constructors
+  `JikanClient(rateLimiter, retryPolicy)` and
+  `JikanClient(rateLimiter, retryPolicy, requestTimeout)`), so transient Jikan
+  failures are retried with backoff like AniList and TMDb.
+- Nullability annotations ([JSpecify](https://jspecify.dev)): the API surface is
+  `@NullMarked` (non-null by default) with `@Nullable` on the genuinely optional
+  values (e.g. `Anime`'s optional fields, the clients' optional `userAgent`/
+  `retryPolicy`/`rateLimiter` and `language` parameters), so IDEs and analysers can
+  warn consumers. The dependency is `provided`-scoped and never leaks at runtime.
+- Code-coverage reporting via JaCoCo (`target/site/jacoco/`), report-only with no
+  build-failing gate.
+
+### Fixed
+- **AniList no longer swallows GraphQL errors.** AniList answers HTTP 200 with an
+  `errors` array (and `data: null`) on failures such as rate limiting; this was
+  read as "no result". It now surfaces as `RateLimitException` (retryable) or
+  `TsunagiException`, both for `searchAnime` and `fetchPopular`.
+- **Consistent retry/rate-limiting on the main search path.** `TmdbClient.searchAnime`
+  now goes through the same policy-aware GET as the rich endpoints, so a transient
+  `429`/`5xx` is retried instead of failing the search.
+- **Defensive id parsing.** `TmdbClient` and `JikanClient` validate the `id`/`mal_id`
+  field before reading it, returning an empty result for malformed payloads instead
+  of throwing `NullPointerException` (matching AniList's existing behaviour).
+
+### Tested
+- HTTP-cycle tests against a local `MockWebServer` (status codes, malformed bodies,
+  request timeouts, retry behaviour and URL building, including `searchMulti`).
+
 ## [1.2.0] - 2026-06-03
 
 Additive release: richer search and title metadata, aimed at cross-source title

@@ -2,6 +2,7 @@ package io.github.diegoalegil.tsunagi.tmdb;
 
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
+import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 
@@ -17,33 +18,33 @@ import java.util.List;
  */
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public record TmdbSearchResult(
-        Long id,
-        String name,
-        String originalName,
-        String overview,
-        String firstAirDate,
-        List<String> originCountry,
-        String posterPath,
-        Double popularity,
-        String title,
-        String originalTitle,
-        String releaseDate,
-        String mediaType,
-        String originalLanguage
+        @Nullable Long id,
+        @Nullable String name,
+        @Nullable String originalName,
+        @Nullable String overview,
+        @Nullable String firstAirDate,
+        @Nullable List<String> originCountry,
+        @Nullable String posterPath,
+        @Nullable Double popularity,
+        @Nullable String title,
+        @Nullable String originalTitle,
+        @Nullable String releaseDate,
+        @Nullable String mediaType,
+        @Nullable String originalLanguage
 ) {
 
     /** Display title: a TV result uses {@code name}, a movie uses {@code title}. */
-    public String displayName() {
+    public @Nullable String displayName() {
         return name != null ? name : title;
     }
 
     /** Original title: a TV result uses {@code original_name}, a movie uses {@code original_title}. */
-    public String displayOriginalName() {
+    public @Nullable String displayOriginalName() {
         return originalName != null ? originalName : originalTitle;
     }
 
     /** Release date: a TV result uses {@code first_air_date}, a movie uses {@code release_date}. */
-    public String displayDate() {
+    public @Nullable String displayDate() {
         return firstAirDate != null ? firstAirDate : releaseDate;
     }
 

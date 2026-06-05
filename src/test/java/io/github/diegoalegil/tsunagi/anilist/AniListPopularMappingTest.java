@@ -1,11 +1,13 @@
 package io.github.diegoalegil.tsunagi.anilist;
 
+import io.github.diegoalegil.tsunagi.exception.RateLimitException;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -185,5 +187,19 @@ class AniListPopularMappingTest {
     @Test
     void returnsEmptyListWhenDataIsMissing() throws Exception {
         assertTrue(client.parsePopularPage("{}").isEmpty());
+    }
+
+    @Test
+    void throwsRateLimitInsteadOfStoppingPaginationOnGraphQlError() {
+        // A rate-limited page must raise (and let the retry policy react) rather
+        // than return empty, which fetchPopular would read as "ran out of results".
+        String json = """
+                {
+                  "data": null,
+                  "errors": [ { "message": "Too Many Requests.", "status": 429 } ]
+                }
+                """;
+
+        assertThrows(RateLimitException.class, () -> client.parsePopularPage(json));
     }
 }
