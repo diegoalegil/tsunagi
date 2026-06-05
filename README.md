@@ -307,7 +307,7 @@ Publishing to Maven Central is documented in [RELEASING.md](RELEASING.md).
 - [x] Rich source models + paginated popular fetch (1.1.0)
 - [x] Multi-search (TV+movies), native titles and synonyms (1.2.0)
 - [x] Resilience hardening, JSpecify nullability, JaCoCo, HTTP-cycle tests (1.3.0)
-- [ ] Optional VS Code extension ([tsunagi-vscode](https://github.com/diegoalegil/tsunagi-vscode))
+- [x] VS Code extension ([tsunagi-vscode](https://github.com/diegoalegil/tsunagi-vscode)) — dependency insert, snippets and AniList search
 
 ## License
 
