@@ -49,7 +49,7 @@ handles rate limiting, retries, caching and timeouts for you.
 <dependency>
     <groupId>io.github.diegoalegil</groupId>
     <artifactId>tsunagi</artifactId>
-    <version>1.2.0</version>
+    <version>1.3.0</version>
 </dependency>
 ```
 
@@ -202,7 +202,21 @@ AniListClient anilist = new AniListClient(
         "MyApp/1.0 (+https://example.com)",                  // userAgent — opt-in (see note above)
         RetryPolicy.exponentialBackoff(3, Duration.ofMillis(500)),
         new TokenBucketRateLimiter(3, Duration.ofSeconds(1)));
+
+// Jikan also accepts an optional RetryPolicy (since 1.3.0):
+JikanClient jikan = new JikanClient(
+        new TokenBucketRateLimiter(3, Duration.ofSeconds(1)),
+        RetryPolicy.exponentialBackoff(3, Duration.ofMillis(500)));
 ```
+
+> **Resilience & nullability (1.3.0).** Every client retries transient failures
+> (`429`/`5xx`/network) when given a `RetryPolicy` — including the main
+> `searchAnime` path — and AniList rate limits (which arrive as HTTP 200 with a
+> GraphQL `errors` array) surface as `RateLimitException` instead of an empty
+> result. The public API is annotated with [JSpecify](https://jspecify.dev)
+> ([`@NullMarked`](https://jspecify.dev) by default, `@Nullable` where a value is
+> optional), so your IDE flags missing null checks. The annotations are
+> `provided`-scoped and never reach your runtime classpath.
 
 ### AniList — rich models & popular feed (since 1.1.0)
 
@@ -292,6 +306,7 @@ Publishing to Maven Central is documented in [RELEASING.md](RELEASING.md).
 - [x] First release on Maven Central
 - [x] Rich source models + paginated popular fetch (1.1.0)
 - [x] Multi-search (TV+movies), native titles and synonyms (1.2.0)
+- [x] Resilience hardening, JSpecify nullability, JaCoCo, HTTP-cycle tests (1.3.0)
 - [ ] Optional VS Code extension ([tsunagi-vscode](https://github.com/diegoalegil/tsunagi-vscode))
 
 ## License

@@ -9,6 +9,8 @@ import io.github.diegoalegil.tsunagi.model.Anime;
 import io.github.diegoalegil.tsunagi.ratelimit.TokenBucketRateLimiter;
 import io.github.diegoalegil.tsunagi.source.AnimeSource;
 
+import org.jspecify.annotations.Nullable;
+
 import java.io.IOException;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -24,13 +26,31 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
 
+/**
+ * Client for <a href="https://anilist.co">AniList</a>, a GraphQL API that needs
+ * no authentication. The search term always travels as a GraphQL variable, never
+ * interpolated into the query, so titles with quotes or special characters are
+ * safe.
+ *
+ * <p>Beyond the unified {@link #searchAnime} mapping, this client exposes
+ * {@link #fetchPopular(int)}, which paginates the popular-anime query and returns
+ * the rich {@link AniListMedia} records (titles, dates, studios, main characters,
+ * tags…). An optional {@code User-Agent}, retry policy and rate limiter can be
+ * supplied through the canonical constructor.
+ *
+ * <p>AniList answers HTTP 200 even for GraphQL-level failures (rate limiting in
+ * particular), reporting them through an {@code errors} array; this client turns
+ * those into a {@link RateLimitException} (or {@link TsunagiException}) instead of
+ * silently treating them as "no result".
+ */
 public final class AniListClient implements AnimeSource {
 
-    private static final URI API_URL = URI.create("https://graphql.anilist.co");
+    private static final URI DEFAULT_API_URL = URI.create("https://graphql.anilist.co");
 
     private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(10);
     private static final Duration DEFAULT_REQUEST_TIMEOUT = Duration.ofSeconds(30);
@@ -42,12 +62,15 @@ public final class AniListClient implements AnimeSource {
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
     private final Duration requestTimeout;
+    // The GraphQL endpoint. Configurable only through a package-private constructor
+    // so tests can target a local server; public constructors use the real host.
+    private final URI apiUrl;
 
     // All three are optional (nullable). When set, fetchPopular/fetchPage apply
     // them; searchAnime only ever uses userAgent.
-    private final String userAgent;
-    private final RetryPolicy retryPolicy;
-    private final TokenBucketRateLimiter rateLimiter;
+    private final @Nullable String userAgent;
+    private final @Nullable RetryPolicy retryPolicy;
+    private final @Nullable TokenBucketRateLimiter rateLimiter;
 
     /** Creates a client with the default request timeout and no extras. */
     public AniListClient() {
@@ -70,9 +93,18 @@ public final class AniListClient implements AnimeSource {
      * @param rateLimiter    optional rate limiter applied before each fetch
      */
     public AniListClient(Duration requestTimeout,
-                         String userAgent,
-                         RetryPolicy retryPolicy,
-                         TokenBucketRateLimiter rateLimiter) {
+                         @Nullable String userAgent,
+                         @Nullable RetryPolicy retryPolicy,
+                         @Nullable TokenBucketRateLimiter rateLimiter) {
+        this(requestTimeout, userAgent, retryPolicy, rateLimiter, DEFAULT_API_URL);
+    }
+
+    /** Package-private test seam: lets tests point the client at a local server. */
+    AniListClient(Duration requestTimeout,
+                  @Nullable String userAgent,
+                  @Nullable RetryPolicy retryPolicy,
+                  @Nullable TokenBucketRateLimiter rateLimiter,
+                  URI apiUrl) {
         this.httpClient = HttpClient.newBuilder().connectTimeout(CONNECT_TIMEOUT).build();
         // TMDb/AniList return many more fields than the records model, so do not
         // fail on unknown properties. This does not affect parseAnime, which uses
@@ -83,6 +115,7 @@ public final class AniListClient implements AnimeSource {
         this.userAgent = userAgent;
         this.retryPolicy = retryPolicy;
         this.rateLimiter = rateLimiter;
+        this.apiUrl = apiUrl;
     }
 
     private static Duration requireTimeout(Duration requestTimeout) {
@@ -202,7 +235,7 @@ public final class AniListClient implements AnimeSource {
         }
 
         HttpRequest.Builder builder = HttpRequest.newBuilder()
-                .uri(API_URL)
+                .uri(apiUrl)
                 .timeout(requestTimeout)
                 .POST(HttpRequest.BodyPublishers.ofString(body));
         applyCommonHeaders(builder);
@@ -266,7 +299,7 @@ public final class AniListClient implements AnimeSource {
         }
 
         HttpRequest.Builder builder = HttpRequest.newBuilder()
-                .uri(API_URL)
+                .uri(apiUrl)
                 .timeout(requestTimeout)
                 .POST(HttpRequest.BodyPublishers.ofString(body));
         applyCommonHeaders(builder);
@@ -300,7 +333,11 @@ public final class AniListClient implements AnimeSource {
 
     /** Deserializes one popular-anime page into its media list (empty if absent). */
     List<AniListMedia> parsePopularPage(String body) throws JsonProcessingException {
-        AniListResponse response = objectMapper.readValue(body, AniListResponse.class);
+        JsonNode root = objectMapper.readTree(body);
+        // Same 200-with-errors contract as searchAnime: surface the failure instead
+        // of letting an empty page mask a rate limit and stop pagination early.
+        throwOnGraphQlErrors(root);
+        AniListResponse response = objectMapper.treeToValue(root, AniListResponse.class);
         if (response == null || response.data() == null || response.data().page() == null) {
             return List.of();
         }
@@ -308,8 +345,42 @@ public final class AniListClient implements AnimeSource {
         return media != null ? media : List.of();
     }
 
+    /**
+     * AniList answers HTTP 200 even for GraphQL-level failures, reporting them
+     * through a top-level {@code errors} array (with {@code data} set to null) —
+     * rate limiting being the most common case. Without this check those bodies
+     * would be read as "no result" and a transient failure would be swallowed,
+     * never reaching the retry policy. Rate-limit errors become a
+     * {@link RateLimitException} (retryable); anything else a {@link TsunagiException}.
+     */
+    private void throwOnGraphQlErrors(JsonNode root) {
+        JsonNode errors = root.path("errors");
+        if (!errors.isArray() || errors.isEmpty()) {
+            return;
+        }
+        StringBuilder messages = new StringBuilder();
+        for (JsonNode error : errors) {
+            int status = error.path("status").asInt(0);
+            String message = error.path("message").asText("");
+            if (status == 429 || message.toLowerCase(Locale.ROOT).contains("too many requests")) {
+                throw new RateLimitException("AniList");
+            }
+            if (messages.length() > 0) {
+                messages.append("; ");
+            }
+            messages.append(message.isEmpty() ? "unknown error" : message);
+            if (status > 0) {
+                messages.append(" (status ").append(status).append(')');
+            }
+        }
+        throw new TsunagiException("AniList GraphQL error: " + messages);
+    }
+
     Optional<Anime> parseAnime(String responseBody) throws JsonProcessingException {
         JsonNode root = objectMapper.readTree(responseBody);
+        // AniList signals failures (e.g. rate limiting) with HTTP 200 + an errors
+        // array, so check that before treating a null Media as "no result".
+        throwOnGraphQlErrors(root);
         JsonNode media = root.path("data").path("Media");
 
         // Defensive: even on 200, Media can be null/missing if nothing matched.
@@ -370,7 +441,7 @@ public final class AniListClient implements AnimeSource {
         return values;
     }
 
-    private String textOrNull(JsonNode node) {
+    private @Nullable String textOrNull(JsonNode node) {
         if (node.isMissingNode() || node.isNull()) {
             return null;
         }
@@ -378,15 +449,15 @@ public final class AniListClient implements AnimeSource {
         return text.isEmpty() ? null : text;
     }
 
-    private Integer intOrNull(JsonNode node) {
+    private @Nullable Integer intOrNull(JsonNode node) {
         return node.canConvertToInt() ? node.asInt() : null;
     }
 
-    private Double doubleOrNull(JsonNode node) {
+    private @Nullable Double doubleOrNull(JsonNode node) {
         return node.isNumber() ? node.asDouble() : null;
     }
 
-    private String firstNonNullText(JsonNode... nodes) {
+    private @Nullable String firstNonNullText(JsonNode... nodes) {
         for (JsonNode node : nodes) {
             if (node != null && !node.isMissingNode() && !node.isNull()) {
                 String text = node.asText();

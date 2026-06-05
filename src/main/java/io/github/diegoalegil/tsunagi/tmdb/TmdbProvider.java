@@ -2,6 +2,7 @@ package io.github.diegoalegil.tsunagi.tmdb;
 
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A streaming provider (e.g. Crunchyroll). {@code logoPath} is the raw relative
@@ -9,9 +10,9 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
  */
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public record TmdbProvider(
-        Integer providerId,
-        String providerName,
-        String logoPath,
-        Integer displayPriority
+        @Nullable Integer providerId,
+        @Nullable String providerName,
+        @Nullable String logoPath,
+        @Nullable Integer displayPriority
 ) {
 }

@@ -1,5 +1,7 @@
 package io.github.diegoalegil.tsunagi.model;
 
+import org.jspecify.annotations.Nullable;
+
 import java.util.List;
 
 /**
@@ -23,14 +25,14 @@ import java.util.List;
  */
 public record Anime(
         String id,
-        String title,
-        Integer year,
-        String description,
-        String imageUrl,
-        Double averageScore,
+        @Nullable String title,
+        @Nullable Integer year,
+        @Nullable String description,
+        @Nullable String imageUrl,
+        @Nullable Double averageScore,
         List<String> genres,
-        Integer episodes,
-        String status,
+        @Nullable Integer episodes,
+        @Nullable String status,
         String source
 ) {
     public Anime {
