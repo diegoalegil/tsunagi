@@ -9,4 +9,7 @@
  *   <li>{@link io.github.diegoalegil.tsunagi.model.Anime} — the unified result model.</li>
  * </ul>
  */
+@NullMarked
 package io.github.diegoalegil.tsunagi;
+
+import org.jspecify.annotations.NullMarked;

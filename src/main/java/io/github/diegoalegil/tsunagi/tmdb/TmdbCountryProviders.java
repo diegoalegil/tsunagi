@@ -2,6 +2,7 @@ package io.github.diegoalegil.tsunagi.tmdb;
 
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
+import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 
@@ -12,10 +13,10 @@ import java.util.List;
  */
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public record TmdbCountryProviders(
-        String link,
-        List<TmdbProvider> flatrate,
-        List<TmdbProvider> free,
-        List<TmdbProvider> rent,
-        List<TmdbProvider> buy
+        @Nullable String link,
+        @Nullable List<TmdbProvider> flatrate,
+        @Nullable List<TmdbProvider> free,
+        @Nullable List<TmdbProvider> rent,
+        @Nullable List<TmdbProvider> buy
 ) {
 }

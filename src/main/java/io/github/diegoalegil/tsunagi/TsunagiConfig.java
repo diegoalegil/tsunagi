@@ -2,6 +2,8 @@ package io.github.diegoalegil.tsunagi;
 
 import io.github.diegoalegil.tsunagi.cache.MemoryCache;
 
+import org.jspecify.annotations.Nullable;
+
 import java.time.Duration;
 import java.util.Optional;
 
@@ -21,7 +23,7 @@ import java.util.Optional;
  */
 public final class TsunagiConfig {
 
-    private final String tmdbToken;
+    private final @Nullable String tmdbToken;
     private final boolean cacheEnabled;
     private final Duration cacheTtl;
     private final int cacheMaxSize;
@@ -29,7 +31,7 @@ public final class TsunagiConfig {
     private final int retryMaxAttempts;
     private final Duration retryInitialDelay;
     private final Duration requestTimeout;
-    private final String userAgent;
+    private final @Nullable String userAgent;
 
     private TsunagiConfig(Builder builder) {
         this.tmdbToken = builder.tmdbToken;
@@ -94,7 +96,7 @@ public final class TsunagiConfig {
 
     public static final class Builder {
 
-        private String tmdbToken;
+        private @Nullable String tmdbToken;
         private boolean cacheEnabled = false;
         private Duration cacheTtl = Duration.ofMinutes(10);
         private int cacheMaxSize = MemoryCache.DEFAULT_MAX_SIZE;
@@ -102,13 +104,13 @@ public final class TsunagiConfig {
         private int retryMaxAttempts = 3;
         private Duration retryInitialDelay = Duration.ofMillis(500);
         private Duration requestTimeout = Duration.ofSeconds(30);
-        private String userAgent;
+        private @Nullable String userAgent;
 
         private Builder() {
         }
 
         /** Sets the TMDb Bearer token used for enrichment. Optional. */
-        public Builder tmdbToken(String tmdbToken) {
+        public Builder tmdbToken(@Nullable String tmdbToken) {
             this.tmdbToken = tmdbToken;
             return this;
         }
@@ -156,7 +158,7 @@ public final class TsunagiConfig {
         }
 
         /** Sets the User-Agent header sent to sources. Optional; unset by default. */
-        public Builder userAgent(String userAgent) {
+        public Builder userAgent(@Nullable String userAgent) {
             this.userAgent = userAgent;
             return this;
         }

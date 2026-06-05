@@ -1,5 +1,7 @@
 package io.github.diegoalegil.tsunagi.anilist;
 
+import io.github.diegoalegil.tsunagi.exception.RateLimitException;
+import io.github.diegoalegil.tsunagi.exception.TsunagiException;
 import io.github.diegoalegil.tsunagi.model.Anime;
 import org.junit.jupiter.api.Test;
 
@@ -153,5 +155,43 @@ class AniListMappingTest {
         Optional<Anime> result = client.parseAnime(json);
 
         assertFalse(result.isPresent());
+    }
+
+    @Test
+    void throwsRateLimitWhenGraphQlErrorHasStatus429() {
+        // AniList answers HTTP 200 with this body when rate-limited; it must not
+        // be mistaken for "no result".
+        String json = """
+                {
+                  "data": null,
+                  "errors": [ { "message": "Too Many Requests.", "status": 429 } ]
+                }
+                """;
+
+        assertThrows(RateLimitException.class, () -> client.parseAnime(json));
+    }
+
+    @Test
+    void throwsRateLimitWhenGraphQlMessageMentionsTooManyRequests() {
+        // Some AniList errors carry the rate-limit signal only in the message.
+        String json = """
+                { "errors": [ { "message": "Too Many Requests" } ] }
+                """;
+
+        assertThrows(RateLimitException.class, () -> client.parseAnime(json));
+    }
+
+    @Test
+    void throwsTsunagiExceptionForOtherGraphQlErrors() {
+        String json = """
+                {
+                  "data": null,
+                  "errors": [ { "message": "Internal Server Error", "status": 500 } ]
+                }
+                """;
+
+        TsunagiException ex = assertThrows(TsunagiException.class, () -> client.parseAnime(json));
+        assertFalse(ex instanceof RateLimitException);
+        assertTrue(ex.getMessage().contains("Internal Server Error"));
     }
 }

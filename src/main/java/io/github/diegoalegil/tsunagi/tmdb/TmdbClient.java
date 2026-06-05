@@ -9,6 +9,8 @@ import io.github.diegoalegil.tsunagi.model.Anime;
 import io.github.diegoalegil.tsunagi.ratelimit.TokenBucketRateLimiter;
 import io.github.diegoalegil.tsunagi.source.AnimeSource;
 
+import org.jspecify.annotations.Nullable;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -42,8 +44,7 @@ import java.util.function.Supplier;
  */
 public final class TmdbClient implements AnimeSource {
 
-    private static final String API_BASE = "https://api.themoviedb.org/3";
-    private static final String SEARCH_URL = "https://api.themoviedb.org/3/search/tv";
+    private static final String DEFAULT_API_BASE = "https://api.themoviedb.org/3";
 
     // Standard TMDb image CDN base plus a reasonable poster size. TMDb also
     // exposes a /configuration endpoint with the canonical base, but this prefix
@@ -57,12 +58,15 @@ public final class TmdbClient implements AnimeSource {
     private final ObjectMapper objectMapper;
     private final String bearerToken;
     private final Duration requestTimeout;
+    // The TMDb API root. Configurable only through a package-private constructor so
+    // tests can target a local server; public constructors always use the real host.
+    private final String apiBase;
 
     // All three are optional (nullable). When set, the rich endpoints (via get())
     // apply them; searchAnime is left untouched and uses none of them.
-    private final String userAgent;
-    private final RetryPolicy retryPolicy;
-    private final TokenBucketRateLimiter rateLimiter;
+    private final @Nullable String userAgent;
+    private final @Nullable RetryPolicy retryPolicy;
+    private final @Nullable TokenBucketRateLimiter rateLimiter;
 
     /**
      * Creates a client authenticated with the given TMDb v4 Bearer token and the
@@ -92,9 +96,19 @@ public final class TmdbClient implements AnimeSource {
      */
     public TmdbClient(String bearerToken,
                       Duration requestTimeout,
-                      String userAgent,
-                      RetryPolicy retryPolicy,
-                      TokenBucketRateLimiter rateLimiter) {
+                      @Nullable String userAgent,
+                      @Nullable RetryPolicy retryPolicy,
+                      @Nullable TokenBucketRateLimiter rateLimiter) {
+        this(bearerToken, requestTimeout, userAgent, retryPolicy, rateLimiter, DEFAULT_API_BASE);
+    }
+
+    /** Package-private test seam: lets tests point the client at a local server. */
+    TmdbClient(String bearerToken,
+               Duration requestTimeout,
+               @Nullable String userAgent,
+               @Nullable RetryPolicy retryPolicy,
+               @Nullable TokenBucketRateLimiter rateLimiter,
+               String apiBase) {
         if (bearerToken == null || bearerToken.isBlank()) {
             throw new IllegalArgumentException("TMDb bearer token must not be null or blank");
         }
@@ -109,6 +123,7 @@ public final class TmdbClient implements AnimeSource {
         this.userAgent = userAgent;
         this.retryPolicy = retryPolicy;
         this.rateLimiter = rateLimiter;
+        this.apiBase = apiBase;
     }
 
     private static Duration requireTimeout(Duration requestTimeout) {
@@ -126,36 +141,11 @@ public final class TmdbClient implements AnimeSource {
     public Optional<Anime> searchAnime(String title) {
         AnimeSource.requireSearchTitle(title);
         String query = URLEncoder.encode(title, StandardCharsets.UTF_8);
-        URI uri = URI.create(SEARCH_URL + "?query=" + query);
-
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(uri)
-                .timeout(requestTimeout)
-                .header("Authorization", "Bearer " + bearerToken)
-                .header("Accept", "application/json")
-                .GET()
-                .build();
-
-        HttpResponse<String> response;
+        // Route through the same policy-aware GET as the rich endpoints, so the
+        // main search path also honours the rate limiter and retry policy.
+        String body = getBody(apiBase + "/search/tv?query=" + query);
         try {
-            response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-        } catch (IOException e) {
-            throw new SourceUnavailableException("TMDb", "request failed", e);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new SourceUnavailableException("TMDb", "request interrupted", e);
-        }
-
-        int status = response.statusCode();
-        if (status == 429) {
-            throw new RateLimitException("TMDb");
-        }
-        if (status != 200) {
-            throw new ApiException("TMDb", status);
-        }
-
-        try {
-            return parseFirstResult(response.body());
+            return parseFirstResult(body);
         } catch (JsonProcessingException e) {
             throw new TsunagiException("Failed to parse TMDb response", e);
         }
@@ -166,8 +156,8 @@ public final class TmdbClient implements AnimeSource {
      * false. When {@code language} is null or blank it is simply omitted (TMDb
      * then uses its default), leaving locale choice to the caller.
      */
-    public TmdbSearchResponse searchTv(String query, String language) {
-        StringBuilder url = new StringBuilder(SEARCH_URL)
+    public TmdbSearchResponse searchTv(String query, @Nullable String language) {
+        StringBuilder url = new StringBuilder(apiBase).append("/search/tv")
                 .append("?query=").append(URLEncoder.encode(query, StandardCharsets.UTF_8))
                 .append("&include_adult=false");
         appendLanguage(url, language);
@@ -180,8 +170,8 @@ public final class TmdbClient implements AnimeSource {
      * or {@link TmdbSearchResult#isMovie()}. {@code include_adult} is always false;
      * {@code language} is omitted when null/blank.
      */
-    public TmdbSearchResponse searchMulti(String query, String language) {
-        StringBuilder url = new StringBuilder(API_BASE)
+    public TmdbSearchResponse searchMulti(String query, @Nullable String language) {
+        StringBuilder url = new StringBuilder(apiBase)
                 .append("/search/multi?query=").append(URLEncoder.encode(query, StandardCharsets.UTF_8))
                 .append("&include_adult=false");
         appendLanguage(url, language);
@@ -189,26 +179,26 @@ public final class TmdbClient implements AnimeSource {
     }
 
     /** Fetches {@code /tv/{id}} details (used for the localized overview). */
-    public TmdbTvDetailsResponse getTvDetails(Long id, String language) {
-        StringBuilder url = new StringBuilder(API_BASE).append("/tv/").append(id);
+    public TmdbTvDetailsResponse getTvDetails(Long id, @Nullable String language) {
+        StringBuilder url = new StringBuilder(apiBase).append("/tv/").append(id);
         appendLanguage(url, language);
         return get(url.toString(), TmdbTvDetailsResponse.class);
     }
 
     /** Fetches {@code /tv/{id}/watch/providers} (providers keyed by country). */
     public TmdbProvidersResponse getWatchProviders(Long id) {
-        return get(API_BASE + "/tv/" + id + "/watch/providers", TmdbProvidersResponse.class);
+        return get(apiBase + "/tv/" + id + "/watch/providers", TmdbProvidersResponse.class);
     }
 
     /** Fetches {@code /tv/{id}/videos} in the requested language, if any. */
-    public TmdbVideosResponse getTrailers(Long id, String language) {
-        StringBuilder url = new StringBuilder(API_BASE).append("/tv/").append(id).append("/videos");
+    public TmdbVideosResponse getTrailers(Long id, @Nullable String language) {
+        StringBuilder url = new StringBuilder(apiBase).append("/tv/").append(id).append("/videos");
         appendLanguage(url, language);
         return get(url.toString(), TmdbVideosResponse.class);
     }
 
     /** Appends {@code language} as a query param, choosing {@code ?} or {@code &}. */
-    private static void appendLanguage(StringBuilder url, String language) {
+    private static void appendLanguage(StringBuilder url, @Nullable String language) {
         if (language == null || language.isBlank()) {
             return;
         }
@@ -222,10 +212,22 @@ public final class TmdbClient implements AnimeSource {
      * applying the rate limiter and retry policy when configured.
      */
     private <T> T get(String url, Class<T> type) {
-        return withPolicies(() -> doGet(url, type));
+        String body = getBody(url);
+        // Parsing sits outside the retry policy on purpose: a malformed body is a
+        // permanent failure, not a transient one worth retrying.
+        try {
+            return objectMapper.readValue(body, type);
+        } catch (JsonProcessingException e) {
+            throw new TsunagiException("Failed to parse TMDb response", e);
+        }
     }
 
-    private <T> T doGet(String url, Class<T> type) {
+    /** Performs the HTTP GET under the rate limiter + retry policy, returning the raw body. */
+    private String getBody(String url) {
+        return withPolicies(() -> doGetBody(url));
+    }
+
+    private String doGetBody(String url) {
         acquire();
 
         HttpRequest.Builder builder = HttpRequest.newBuilder()
@@ -251,12 +253,7 @@ public final class TmdbClient implements AnimeSource {
         if (status != 200) {
             throw new ApiException("TMDb", status);
         }
-
-        try {
-            return objectMapper.readValue(response.body(), type);
-        } catch (JsonProcessingException e) {
-            throw new TsunagiException("Failed to parse TMDb response", e);
-        }
+        return response.body();
     }
 
     /** Adds the Bearer auth and Accept headers, plus User-Agent when configured. */
@@ -279,7 +276,13 @@ public final class TmdbClient implements AnimeSource {
 
         JsonNode media = results.get(0);
 
-        String id = "tmdb:" + media.get("id").asInt();
+        // A result without a usable numeric id is malformed; treat it as no result
+        // instead of crashing on a missing/non-numeric field.
+        JsonNode idNode = media.path("id");
+        if (!idNode.canConvertToInt()) {
+            return Optional.empty();
+        }
+        String id = "tmdb:" + idNode.asInt();
 
         String title = firstNonNullText(
                 media.path("name"),
@@ -327,7 +330,7 @@ public final class TmdbClient implements AnimeSource {
     }
 
     /** Extracts the year from a "YYYY-MM-DD" first air date, or null if absent. */
-    private Integer readYear(JsonNode firstAirDate) {
+    private @Nullable Integer readYear(JsonNode firstAirDate) {
         if (firstAirDate.isMissingNode() || firstAirDate.isNull()) {
             return null;
         }
@@ -343,7 +346,7 @@ public final class TmdbClient implements AnimeSource {
     }
 
     /** Turns a "/poster.jpg" path into a full CDN URL, or null when absent. */
-    private String readPosterUrl(JsonNode posterPath) {
+    private @Nullable String readPosterUrl(JsonNode posterPath) {
         if (posterPath.isMissingNode() || posterPath.isNull()) {
             return null;
         }
@@ -351,7 +354,7 @@ public final class TmdbClient implements AnimeSource {
         return path.isEmpty() ? null : POSTER_BASE + path;
     }
 
-    private String textOrNull(JsonNode node) {
+    private @Nullable String textOrNull(JsonNode node) {
         if (node.isMissingNode() || node.isNull()) {
             return null;
         }
@@ -359,7 +362,7 @@ public final class TmdbClient implements AnimeSource {
         return text.isEmpty() ? null : text;
     }
 
-    private String firstNonNullText(JsonNode... nodes) {
+    private @Nullable String firstNonNullText(JsonNode... nodes) {
         for (JsonNode node : nodes) {
             if (node != null && !node.isMissingNode() && !node.isNull()) {
                 String text = node.asText();

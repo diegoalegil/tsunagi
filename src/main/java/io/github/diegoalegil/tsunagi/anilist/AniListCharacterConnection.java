@@ -1,7 +1,9 @@
 package io.github.diegoalegil.tsunagi.anilist;
 
+import org.jspecify.annotations.Nullable;
+
 import java.util.List;
 
 /** The {@code characters} connection of a media entry, wrapping the edges. */
-public record AniListCharacterConnection(List<AniListCharacterEdge> edges) {
+public record AniListCharacterConnection(@Nullable List<AniListCharacterEdge> edges) {
 }
